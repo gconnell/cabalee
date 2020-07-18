@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package nl.co.gram.outernet;
+option java_package = "nl.co.gram.outernet";
+option java_multiple_files = true;
+
+message Hello {
+  int64 id = 1;
+}
+
+enum MsgType {
+  UNKNOWN_MSGTYPE = 0;
+  HELLO = 1;
+  ROUTE_TO_SERVICE_REQUEST = 2;
+  ROUTE_TO_SERVICE_RESPONSE = 3;
+}
+
+enum Service {
+  UNKNOWN_SERVICE = 0;
+  INTERNET = 1;
+}
+
+message Hop {
+  int64 id = 1;
+  int64 elapsed_realtime_nanos = 2;
+}
+
+message RouteToServiceRequest {
+  int32 req = 1;
+  Service service = 2;
+  repeated Hop outbound = 3;
+}
+
+message RouteToServiceResponse {
+  int32 req = 1;
+  Service service = 2;
+  repeated Hop outbound = 3;
+  repeated Hop inbound = 4;
+}

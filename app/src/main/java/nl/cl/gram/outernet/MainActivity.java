@@ -1,0 +1,133 @@
+package nl.cl.gram.outernet;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.view.WindowManager;
+import android.widget.TextView;
+
+import com.google.android.gms.nearby.Nearby;
+import com.google.android.gms.nearby.connection.AdvertisingOptions;
+import com.google.android.gms.nearby.connection.ConnectionInfo;
+import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
+import com.google.android.gms.nearby.connection.ConnectionResolution;
+import com.google.android.gms.nearby.connection.ConnectionsClient;
+import com.google.android.gms.nearby.connection.ConnectionsStatusCodes;
+import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
+import com.google.android.gms.nearby.connection.DiscoveryOptions;
+import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
+import com.google.android.gms.nearby.connection.Payload;
+import com.google.android.gms.nearby.connection.PayloadCallback;
+import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
+import com.google.android.gms.nearby.connection.Strategy;
+
+import java.nio.charset.StandardCharsets;
+import java.util.logging.Logger;
+
+public class MainActivity extends AppCompatActivity {
+    private static final Logger logger = Logger.getLogger("outernet.main");
+    String uuid = null;
+    private static final String SERVICE_ID = "nl.co.gram.outernet";
+    ConnectionsClient connectionsClient = null;
+    private TextView textView = null;
+    private CommCenter commCenter = null;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        enableLocation();
+        byte[] uuidBytes = new byte[6];
+        Util.randomBytes(uuidBytes);
+        uuid = Util.toHex(uuidBytes);
+        connectionsClient = Nearby.getConnectionsClient(this);
+        commCenter = new CommCenter(connectionsClient);
+        textView = (TextView) findViewById(R.id.textview);
+        textView.setText("");
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        logger.info("Starting");
+        startAdvertising();
+        startDiscovery();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        logger.info("Stopping");
+        connectionsClient.stopAdvertising();
+        connectionsClient.stopDiscovery();
+        connectionsClient.stopAllEndpoints();
+    }
+
+    private void enableLocation() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+            }
+        }
+    }
+
+    private void startDiscovery() {
+        DiscoveryOptions discoveryOptions =
+                new DiscoveryOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build();
+        EndpointDiscoveryCallback callback = new EndpointDiscoveryCallback() {
+            @Override
+            public void onEndpointFound(@NonNull String s, @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
+                logger.info("onEndpointFound: " + s);
+                connectionsClient
+                        .requestConnection(uuid, s, commCenter.connect(s))
+                        .addOnSuccessListener(
+                                (Void unused) -> {
+                                    logger.info("requesting connection to " + s + " succeeded");
+                                })
+                        .addOnFailureListener(
+                                (Exception e) -> {
+                                    logger.info("requesting connection to " + s + " failed: " + e.getMessage());
+                                });
+            }
+
+            @Override
+            public void onEndpointLost(@NonNull String s) {
+                logger.info("onEndpointLost: " + s);
+            }
+        };
+        connectionsClient
+                .startDiscovery(SERVICE_ID, callback, discoveryOptions)
+                .addOnSuccessListener(
+                        (Void unused) -> {
+                            logger.info("Discovering started");
+                        })
+                .addOnFailureListener(
+                        (Exception e) -> {
+                            logger.severe("Discovering failed: " + e.getMessage());
+                            e.printStackTrace();
+                        });
+    }
+
+    private void startAdvertising() {
+        AdvertisingOptions advertisingOptions =
+                new AdvertisingOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build();
+        connectionsClient
+                .startAdvertising(uuid, SERVICE_ID, commCenter.connect(s), advertisingOptions)
+                .addOnSuccessListener(
+                        (Void unused) -> {
+                            logger.info("Advertizing started");
+                        })
+                .addOnFailureListener(
+                        (Exception e) -> {
+                            logger.severe("Advertizing failed: " + e.getMessage());
+                            e.printStackTrace();
+                        });
+    }
+}
