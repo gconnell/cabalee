@@ -5,7 +5,7 @@ option java_package = "nl.co.gram.outernet";
 option java_multiple_files = true;
 
 message Hello {
-  int64 id = 1;
+  fixed64 id = 1;
 }
 
 enum MsgType {
@@ -21,7 +21,7 @@ enum Service {
 }
 
 message Hop {
-  int64 id = 1;
+  fixed64 id = 1;
   int64 elapsed_realtime_nanos = 2;
 }
 

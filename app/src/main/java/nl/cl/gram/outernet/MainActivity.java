@@ -8,26 +8,29 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.text.method.ScrollingMovementMethod;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.TextView;
 
 import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.AdvertisingOptions;
-import com.google.android.gms.nearby.connection.ConnectionInfo;
-import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
-import com.google.android.gms.nearby.connection.ConnectionResolution;
 import com.google.android.gms.nearby.connection.ConnectionsClient;
-import com.google.android.gms.nearby.connection.ConnectionsStatusCodes;
 import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
 import com.google.android.gms.nearby.connection.DiscoveryOptions;
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
-import com.google.android.gms.nearby.connection.Payload;
-import com.google.android.gms.nearby.connection.PayloadCallback;
-import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.android.gms.nearby.connection.Strategy;
 
-import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.concurrent.Future;
 import java.util.logging.Logger;
+
+import java9.util.concurrent.CompletableFuture;
+import nl.co.gram.outernet.Hop;
+import nl.co.gram.outernet.RouteToServiceResponse;
+import nl.co.gram.outernet.Service;
 
 public class MainActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("outernet.main");
@@ -36,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
     ConnectionsClient connectionsClient = null;
     private TextView textView = null;
     private CommCenter commCenter = null;
+    private Handler handler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,9 +52,52 @@ public class MainActivity extends AppCompatActivity {
         connectionsClient = Nearby.getConnectionsClient(this);
         commCenter = new CommCenter(connectionsClient);
         textView = (TextView) findViewById(R.id.textview);
-        textView.setText("");
+        textView.setText("I am " + commCenter.id() + "\n");
+        textView.setMovementMethod(new ScrollingMovementMethod());
+        Button b = (Button) findViewById(R.id.button);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                commCenter.turnOffServices();
+            }
+        });
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
+
+    private Runnable doFunStuff = new Runnable() {
+        @Override
+        public void run() {
+            Date d = new Date();
+            textView.append("At " + d + "\n");
+            for (Comm c : commCenter.activeComms()) {
+                textView.append("  connected to: " + c.remoteID() + " at " + c.remote() + "\n");
+            }
+            commCenter.fastestRouteTo(Service.INTERNET, new Stream<RouteToServiceResponse>() {
+                        @Override
+                        public void onNext(RouteToServiceResponse r) {
+                            textView.append("route:\n");
+                            for (Hop hop : r.getOutboundList()) {
+                                textView.append("  " + hop.getId() + "\n");
+                            }
+                            double latency =
+                                    r.getInbound(r.getInboundCount() - 1).getElapsedRealtimeNanos() -
+                                            r.getOutbound(0).getElapsedRealtimeNanos();
+                            textView.append("latency " + (latency / 1_000_000_000D) + "\n");
+                        }
+
+                        @Override
+                        public void onComplete() {
+
+                        }
+
+                        @Override
+                        public void onError(Throwable t) {
+                            textView.append("route request failed: " + t.getMessage() + "\n");
+                        }
+                    });
+            handler.postDelayed(this, 15_000);
+        }
+    };
 
     @Override
     protected void onResume() {
@@ -58,12 +105,14 @@ public class MainActivity extends AppCompatActivity {
         logger.info("Starting");
         startAdvertising();
         startDiscovery();
+        handler.postDelayed(doFunStuff, 7_000);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         logger.info("Stopping");
+        handler.removeCallbacks(doFunStuff);
         connectionsClient.stopAdvertising();
         connectionsClient.stopDiscovery();
         connectionsClient.stopAllEndpoints();
@@ -86,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
             public void onEndpointFound(@NonNull String s, @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
                 logger.info("onEndpointFound: " + s);
                 connectionsClient
-                        .requestConnection(uuid, s, commCenter.connect(s))
+                        .requestConnection(uuid, s, commCenter)
                         .addOnSuccessListener(
                                 (Void unused) -> {
                                     logger.info("requesting connection to " + s + " succeeded");
@@ -119,7 +168,7 @@ public class MainActivity extends AppCompatActivity {
         AdvertisingOptions advertisingOptions =
                 new AdvertisingOptions.Builder().setStrategy(Strategy.P2P_CLUSTER).build();
         connectionsClient
-                .startAdvertising(uuid, SERVICE_ID, commCenter.connect(s), advertisingOptions)
+                .startAdvertising(uuid, SERVICE_ID, commCenter, advertisingOptions)
                 .addOnSuccessListener(
                         (Void unused) -> {
                             logger.info("Advertizing started");
