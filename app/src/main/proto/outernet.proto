@@ -37,3 +37,12 @@ message RouteToServiceResponse {
   repeated Hop outbound = 3;
   repeated Hop inbound = 4;
 }
+
+message EstablishRouteRequest {
+  fixed64 conn = 1;
+  repeated fixed64 route = 2;
+}
+
+message EstablishRouteResponse {
+  fixed64 conn = 1;
+}

@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
-import java9.util.concurrent.CompletableFuture;
 import nl.co.gram.outernet.Hello;
 import nl.co.gram.outernet.Hop;
 import nl.co.gram.outernet.MsgType;
@@ -42,16 +41,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private Map<Integer, Stream<RouteToServiceResponse>> routeResponses = new ConcurrentHashMap<>();
 
     CommCenter(ConnectionsClient connectionsClient) {
-        byte[] bytes = new byte[8];
-        Util.randomBytes(bytes);
-        long id = 0;
-        for (int i = 0; i < 8; i++) {
-            id = (id << 8) | ((long) bytes[i]) & 0xFFL;
-        }
-        if (id < 0) {
-            id = -id;
-        }
-        localID = id;
+        localID = Util.newRandomID();
         this.connectionsClient = connectionsClient;
         handler.postDelayed(getRoutes(), 5_000);
     }

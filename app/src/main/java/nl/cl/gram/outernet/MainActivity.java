@@ -116,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
         connectionsClient.stopAdvertising();
         connectionsClient.stopDiscovery();
         connectionsClient.stopAllEndpoints();
+        finish();
     }
 
     private void enableLocation() {

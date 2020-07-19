@@ -51,17 +51,24 @@ public class Util {
         secureRandom.nextBytes(bytes);
     }
 
-    public static class Uint32 {
+    public static class Uint64 {
         public static void writeLittleEndianTo(long out, OutputStream os) throws IOException {
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 8; i++) {
                 os.write((byte) (out & 0xFFL));
                 out >>= 8;
             }
         }
-       public static long readLittleEndianFrom(InputStream is) throws IOException {
+        public static long readLittleEndianFrom(byte[] b) {
             long out = 0;
-            for (int i = 0; i < 4; i++) {
-                out = (out >> 8) | (0xFFL & (long) is.read()) << 24;
+            for (int i = 0; i < 8; i++) {
+                out = (out >> 8) | (0xFFL & (long) b[i]) << 56;
+            }
+            return out;
+        }
+        public static long readLittleEndianFrom(InputStream is) throws IOException {
+            long out = 0;
+            for (int i = 0; i < 8; i++) {
+                out = (out >> 8) | (0xFFL & (long) is.read()) << 56;
             }
             return out;
         }
@@ -72,4 +79,19 @@ public class Util {
             throw new IllegalArgumentException("argument invalid: " + String.format(msg, args));
         }
     }
+
+    public static void fillBuffer(InputStream is, byte[] buf) throws IOException {
+        int bytesRead = 0;
+        while (bytesRead < buf.length) {
+            bytesRead += is.read(buf, bytesRead, buf.length-bytesRead);
+        }
+    }
+
+    public static long newRandomID() {
+        byte[] b = new byte[8];
+        Util.randomBytes(b);
+        long i = Util.Uint64.readLittleEndianFrom(b);
+        return (i < 0 ? -i : i);
+    }
+
 }
