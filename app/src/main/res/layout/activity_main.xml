@@ -23,7 +23,15 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="OFF"
-        tools:layout_editor_absoluteX="288dp"
-        tools:layout_editor_absoluteY="29dp" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/route"
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:text="Route"
+        app:layout_constraintEnd_toStartOf="@+id/button"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

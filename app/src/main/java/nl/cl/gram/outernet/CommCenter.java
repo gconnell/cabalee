@@ -19,16 +19,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import nl.co.gram.outernet.Hello;
 import nl.co.gram.outernet.Hop;
 import nl.co.gram.outernet.MsgType;
-import nl.co.gram.outernet.RouteToServiceRequest;
-import nl.co.gram.outernet.RouteToServiceResponse;
-import nl.co.gram.outernet.Service;
 
 public class CommCenter extends ConnectionLifecycleCallback {
     private static final Logger logger = Logger.getLogger("outernet.center");
@@ -37,8 +32,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private Map<String, Comm> commsByRemote = new HashMap<>();
     private final ConnectionsClient connectionsClient;
     private Handler handler = new Handler();
-    private AtomicInteger requestIDs = new AtomicInteger(0);
-    private Map<Integer, Stream<RouteToServiceResponse>> routeResponses = new ConcurrentHashMap<>();
 
     CommCenter(ConnectionsClient connectionsClient) {
         localID = Util.newRandomID();
@@ -58,25 +51,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
                 .build();
     }
 
-    public void fastestRouteTo(Service service, Stream<RouteToServiceResponse> s) {
-        final int req = requestIDs.addAndGet(1);
-        RouteToServiceRequest rr = RouteToServiceRequest.newBuilder()
-                .setReq(req)
-                .setService(service)
-                .addOutbound(myHop())
-                .build();
-        sendToAll(-1, rr);
-        routeResponses.put(req, s);
-        // TODO: remove this post more efficiently when/if things succeed.
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                routeResponses.remove(req);
-                s.onComplete();
-            }
-        }, 13_000);
-    }
-
     private Runnable getRoutes() {
         return new Runnable() {
             @Override
@@ -93,16 +67,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
                 handler.postDelayed(this, 15_000);
             }
         };
-    }
-
-    boolean anyServices = true;
-
-    public void turnOffServices() {
-        anyServices = false;
-    }
-
-    public boolean hasService(Service service) {
-        return anyServices;
     }
 
     public synchronized void sendToAll(long except, @NonNull Object proto) {
@@ -131,32 +95,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
         return c;
     }
 
-    void handleRouteResponse(RouteToServiceResponse rresp) {
-        Util.checkArgument(rresp.getOutboundCount() == rresp.getInboundCount(), "#outbound != #inbound");
-        ArrayList<Long> roundTrips = new ArrayList<>(rresp.getInboundCount()+1);
-        long totalLatency = -1;
-        for (int out = 0; out < rresp.getOutboundCount(); out++) {
-            int in = rresp.getInboundCount() - out - 1;
-            Hop outH = rresp.getOutbound(out);
-            Hop inH = rresp.getInbound(in);
-            Util.checkArgument(outH.getId() == inH.getId(), "id mismatch @ %d/%d", out, in);
-            roundTrips.add(inH.getElapsedRealtimeNanos() - outH.getElapsedRealtimeNanos());
-            if (out == 0) {
-                totalLatency = inH.getElapsedRealtimeNanos() - outH.getElapsedRealtimeNanos();
-            }
-        }
-        logger.severe("RResp total latency: " + nanosAsSeconds(totalLatency));
-        for (int i = 0; i < rresp.getOutboundCount() - 1; i++) {
-            long latency = roundTrips.get(i) - roundTrips.get(i+1);
-            double seconds = nanosAsSeconds(latency) / 2;
-            logger.info(String.format("%d -> %d took %f", rresp.getOutbound(i).getId(), rresp.getOutbound(i+1).getId(), seconds));
-        }
-        Stream<RouteToServiceResponse> resp = routeResponses.get(rresp.getReq());
-        if (resp != null) {
-            resp.onNext(rresp);
-        }
-    }
-
     double nanosAsSeconds(long nanos) {
         return ((double) nanos) / 1_000_000_000D;
     }
@@ -175,6 +113,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
             case DISCONNECTED:
                 commsByID.remove(c.remoteID());
                 commsByRemote.remove(c.remote());
+                c.close();
                 break;
         }
     }
@@ -190,12 +129,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
             if (o instanceof Hello) {
                 buf.write(MsgType.HELLO_VALUE);
                 ((Hello) o).writeTo(buf);
-            } else if (o instanceof RouteToServiceRequest) {
-                buf.write(MsgType.ROUTE_TO_SERVICE_REQUEST_VALUE);
-                ((RouteToServiceRequest) o).writeTo(buf);
-            } else if (o instanceof RouteToServiceResponse) {
-                buf.write(MsgType.ROUTE_TO_SERVICE_RESPONSE_VALUE);
-                ((RouteToServiceResponse) o).writeTo(buf);
             } else {
                 throw new RuntimeException("unsupported object to send: " + o.getClass());
             }

@@ -61,7 +61,7 @@ public class Util {
         public static long readLittleEndianFrom(byte[] b) {
             long out = 0;
             for (int i = 0; i < 8; i++) {
-                out = (out >> 8) | (0xFFL & (long) b[i]) << 56;
+                out |= (0xFFL & (long) b[i]) << (i*8);
             }
             return out;
         }
@@ -94,4 +94,7 @@ public class Util {
         return (i < 0 ? -i : i);
     }
 
+    public static double nanosAsSeconds(long nanos) {
+        return ((double) nanos) / 1_000_000_000D;
+    }
 }

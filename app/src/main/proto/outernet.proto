@@ -11,13 +11,7 @@ message Hello {
 enum MsgType {
   UNKNOWN_MSGTYPE = 0;
   HELLO = 1;
-  ROUTE_TO_SERVICE_REQUEST = 2;
-  ROUTE_TO_SERVICE_RESPONSE = 3;
-}
-
-enum Service {
-  UNKNOWN_SERVICE = 0;
-  INTERNET = 1;
+  BROADCAST = 2;
 }
 
 message Hop {
@@ -25,24 +19,8 @@ message Hop {
   int64 elapsed_realtime_nanos = 2;
 }
 
-message RouteToServiceRequest {
-  int32 req = 1;
-  Service service = 2;
-  repeated Hop outbound = 3;
-}
-
-message RouteToServiceResponse {
-  int32 req = 1;
-  Service service = 2;
-  repeated Hop outbound = 3;
-  repeated Hop inbound = 4;
-}
-
-message EstablishRouteRequest {
-  fixed64 conn = 1;
-  repeated fixed64 route = 2;
-}
-
-message EstablishRouteResponse {
-  fixed64 conn = 1;
+message Transport {
+  bytes network_id = 1;
+  bytes message = 2;
+  bytes message_signature = 3;
 }
