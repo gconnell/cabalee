@@ -15,6 +15,9 @@ public class BroadcastTransportHandler extends TransportHandler {
 
     @Override
     protected void handleVerifiedTransport(long from, Transport transport) throws GeneralSecurityException {
-        commCenter.sendToAll(from, transport);
+        transport = transport.toBuilder()
+                .addPath(commCenter.id())
+                .build();
+        commCenter.sendToAll(transport, transport.getPathList());
     }
 }

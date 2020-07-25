@@ -10,9 +10,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.method.ScrollingMovementMethod;
-import android.view.View;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.TextView;
 
 import com.google.android.gms.nearby.Nearby;
@@ -25,13 +23,9 @@ import com.google.android.gms.nearby.connection.Strategy;
 import com.google.crypto.tink.config.TinkConfig;
 
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.logging.Logger;
 
-import nl.co.gram.outernet.Hop;
-
-import static nl.cl.gram.outernet.Util.nanosAsSeconds;
 
 public class MainActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("outernet.main");

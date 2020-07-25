@@ -1,8 +1,6 @@
 package nl.cl.gram.outernet;
 
-import android.net.ConnectivityManager;
 import android.os.Handler;
-import android.os.SystemClock;
 
 import androidx.annotation.NonNull;
 
@@ -32,13 +30,11 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private Map<Long, Comm> commsByID = new HashMap<>();
     private Map<String, Comm> commsByRemote = new HashMap<>();
     private final ConnectionsClient connectionsClient;
-    private Handler handler = new Handler();
     private Map<ByteString, TransportHandler> messageHandlers = new HashMap<>();
 
     CommCenter(ConnectionsClient connectionsClient) {
         localID = Util.newRandomID();
         this.connectionsClient = connectionsClient;
-        handler.postDelayed(logComms(), 5_000);
     }
     public long id() { return localID; }
 
@@ -46,39 +42,14 @@ public class CommCenter extends ConnectionLifecycleCallback {
         return new ArrayList<>(commsByID.values());
     }
 
-    private Runnable logComms() {
-        return new Runnable() {
-            @Override
-            public void run() {
-                synchronized (CommCenter.this) {
-                    for (String s : commsByRemote.keySet()) {
-                        Comm c = commsByRemote.get(s);
-                        logger.info("have remote conn for: " + s + " id=" + c.remoteID());
-                    }
-                    for (Long l : commsByID.keySet()) {
-                        logger.info("have remote conn for id: " + l);
-                    }
-                }
-                handler.postDelayed(this, 15_000);
-            }
-        };
-    }
-
-    public synchronized void sendToAll(long except, @NonNull Object proto) {
+    public synchronized void sendToAll(@NonNull Object proto, Collection<Long> except) {
         if (commsByID.isEmpty()) return;
         logger.info("sending to all: " + proto.getClass());
         for (Comm c : commsByID.values()) {
-            if (c.remoteID() != except) {
+            if (!except.contains(c.remoteID())) {
                 c.sendProto(proto);
             }
         }
-    }
-    public synchronized boolean sendTo(long id, @NonNull Object proto) {
-        logger.info("sending to " + id + ": " + proto.getClass());
-        Comm c = commsByID.get(id);
-        if (c == null) return false;
-        c.sendProto(proto);
-        return true;
     }
 
     private synchronized Comm commFor(String remote) {
@@ -120,6 +91,9 @@ public class CommCenter extends ConnectionLifecycleCallback {
             if (o instanceof Hello) {
                 buf.write(MsgType.HELLO_VALUE);
                 ((Hello) o).writeTo(buf);
+            } else if (o instanceof Transport) {
+                buf.write(MsgType.TRANSPORT_VALUE);
+                ((Transport) o).writeTo(buf);
             } else {
                 throw new RuntimeException("unsupported object to send: " + o.getClass());
             }
