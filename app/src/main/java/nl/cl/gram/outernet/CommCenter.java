@@ -12,6 +12,7 @@ import com.google.android.gms.nearby.connection.ConnectionResolution;
 import com.google.android.gms.nearby.connection.ConnectionsClient;
 import com.google.android.gms.nearby.connection.ConnectionsStatusCodes;
 import com.google.android.gms.nearby.connection.Payload;
+import com.google.protobuf.ByteString;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.util.logging.Logger;
 
 import nl.co.gram.outernet.Hello;
 import nl.co.gram.outernet.MsgType;
+import nl.co.gram.outernet.Transport;
 
 public class CommCenter extends ConnectionLifecycleCallback {
     private static final Logger logger = Logger.getLogger("outernet.center");
@@ -31,11 +33,12 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private Map<String, Comm> commsByRemote = new HashMap<>();
     private final ConnectionsClient connectionsClient;
     private Handler handler = new Handler();
+    private Map<ByteString, TransportHandler> messageHandlers = new HashMap<>();
 
     CommCenter(ConnectionsClient connectionsClient) {
         localID = Util.newRandomID();
         this.connectionsClient = connectionsClient;
-        handler.postDelayed(getRoutes(), 5_000);
+        handler.postDelayed(logComms(), 5_000);
     }
     public long id() { return localID; }
 
@@ -43,7 +46,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
         return new ArrayList<>(commsByID.values());
     }
 
-    private Runnable getRoutes() {
+    private Runnable logComms() {
         return new Runnable() {
             @Override
             public void run() {
@@ -158,5 +161,20 @@ public class CommCenter extends ConnectionLifecycleCallback {
     public void onDisconnected(@NonNull String s) {
         logger.info("onDisconnected: " + s);
         commFor(s).setState(Comm.State.DISCONNECTED);
+    }
+
+    public void handleTransport(long from, Transport t) {
+        if (t.getPathList().contains(localID)) {
+            logger.info("discarding transport loop with path: " + t.getPathList());
+            return;
+        }
+        TransportHandler h;
+        synchronized (this) {
+            h = messageHandlers.get(t.getNetworkId());
+        }
+        if (h != null) {
+            logger.info("handling known network transport");
+            h.handleTransport(from, t);
+        }
     }
 }

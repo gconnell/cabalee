@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 
 import nl.co.gram.outernet.Hello;
 import nl.co.gram.outernet.MsgType;
+import nl.co.gram.outernet.Transport;
 
 public class Comm extends PayloadCallback {
     private static final Logger logger = Logger.getLogger("outernet.comm"); 
@@ -67,6 +68,12 @@ public class Comm extends PayloadCallback {
                 logger.info("Hello from " + remoteID() + ": " + h.getId());
                 remoteClient = h.getId();
                 setState(State.IDENTIFIED);
+                break;
+            }
+            case MsgType.TRANSPORT_VALUE: {
+                Transport t = Transport.parseFrom(in);
+                logger.info("Transport from " + remoteID());
+                commCenter.handleTransport(remoteID(), t);
                 break;
             }
             default:

@@ -14,7 +14,7 @@ message Hello {
 enum MsgType {
   UNKNOWN_MSGTYPE = 0;
   HELLO = 1;
-  BROADCAST = 2;
+  TRANSPORT = 2;
 }
 
 message Hop {

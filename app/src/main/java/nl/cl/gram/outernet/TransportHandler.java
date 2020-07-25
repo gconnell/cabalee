@@ -16,19 +16,12 @@ public abstract class TransportHandler {
         verifier = keysetHandle.getPrimitive(PublicKeyVerify.class);
     }
 
-    private boolean verifyTransport(Transport msg) {
-        try {
-            verifier.verify(msg.getPayloadSignature().toByteArray(), msg.getPayload().toByteArray());
-            return true;
-        } catch (GeneralSecurityException e) {
-            return false;
-        }
-    }
-
     public void handleTransport(long from, Transport transport) {
-        if (!verifyTransport(transport)) {
-            logger.severe("discarding unverified transport");
-            return;
+        try {
+            verifier.verify(transport.getPayloadSignature().toByteArray(), transport.getPayload().toByteArray());
+            handleVerifiedTransport(from, transport);
+        } catch (GeneralSecurityException e) {
+            logger.severe("ignoring message with security exception: " + e.getMessage());
         }
     }
 
