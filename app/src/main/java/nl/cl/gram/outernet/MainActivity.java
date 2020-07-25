@@ -22,7 +22,9 @@ import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
 import com.google.android.gms.nearby.connection.DiscoveryOptions;
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
 import com.google.android.gms.nearby.connection.Strategy;
+import com.google.crypto.tink.config.TinkConfig;
 
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.logging.Logger;
@@ -43,6 +45,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        try {
+            TinkConfig.register();
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+            throw new RuntimeException("tink failed: " + e.getMessage());
+        }
         setContentView(R.layout.activity_main);
         enableLocation();
         connectionsClient = Nearby.getConnectionsClient(this);

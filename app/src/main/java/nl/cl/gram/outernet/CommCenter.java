@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import nl.co.gram.outernet.Hello;
-import nl.co.gram.outernet.Hop;
 import nl.co.gram.outernet.MsgType;
 
 public class CommCenter extends ConnectionLifecycleCallback {
@@ -42,13 +41,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
 
     public synchronized Collection<Comm> activeComms() {
         return new ArrayList<>(commsByID.values());
-    }
-
-    Hop myHop() {
-        return Hop.newBuilder()
-                .setId(id())
-                .setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos())
-                .build();
     }
 
     private Runnable getRoutes() {
@@ -93,10 +85,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
             commsByRemote.put(remote, c);
         }
         return c;
-    }
-
-    double nanosAsSeconds(long nanos) {
-        return ((double) nanos) / 1_000_000_000D;
     }
 
     synchronized void recheckState(Comm c) {

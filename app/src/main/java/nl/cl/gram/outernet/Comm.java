@@ -1,7 +1,5 @@
 package nl.cl.gram.outernet;
 
-import android.os.SystemClock;
-
 import androidx.annotation.NonNull;
 
 import com.google.android.gms.nearby.connection.Payload;
@@ -10,9 +8,6 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.logging.Logger;
 
 import nl.co.gram.outernet.Hello;
@@ -24,8 +19,6 @@ public class Comm extends PayloadCallback {
     private State state = State.STARTING;
     private final CommCenter commCenter;
     private long remoteClient = -1;
-    private InputStream input = null;
-    private Map<Long, Payload> incomingStreams = new HashMap<>();
 
     public void close() {
     }
