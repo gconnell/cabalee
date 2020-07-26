@@ -1,13 +1,5 @@
 package nl.cl.gram.outernet;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.DiffUtil;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.ListAdapter;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -24,6 +16,14 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.ListAdapter;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.AdvertisingOptions;
 import com.google.android.gms.nearby.connection.ConnectionsClient;
@@ -35,8 +35,7 @@ import com.google.android.gms.nearby.connection.Strategy;
 import java.util.Date;
 import java.util.logging.Logger;
 
-
-public class MainActivity extends AppCompatActivity {
+public class NetworkActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("outernet.main");
     private static final String SERVICE_ID = "nl.co.gram.outernet";
     ConnectionsClient connectionsClient = null;
@@ -46,6 +45,8 @@ public class MainActivity extends AppCompatActivity {
     private static final Strategy strategy = Strategy.P2P_CLUSTER;
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
+
+    public static final String EXTRA_NETWORK_ID = "nl.co.gram.outernet.ExtraNetworkId";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,8 +74,8 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 ReceivingHandler rh = new ReceivingHandler(commCenter);
                 commCenter.setReceiver(rh);
-                Toast.makeText(MainActivity.this, "New: " + Util.toHex(rh.id().toByteArray()), Toast.LENGTH_LONG).show();
-                Intent i = new Intent(MainActivity.this, QrShowerActivity.class);
+                Toast.makeText(NetworkActivity.this, "New: " + Util.toHex(rh.id().toByteArray()), Toast.LENGTH_LONG).show();
+                Intent i = new Intent(NetworkActivity.this, QrShowerActivity.class);
                 i.putExtra(QrShowerActivity.EXTRA_QR_TO_SHOW, QrShowerActivity.url(rh.sooperSecret()));
                 startActivity(i);
             }
@@ -85,13 +86,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA)
+                    if (ContextCompat.checkSelfPermission(NetworkActivity.this, Manifest.permission.CAMERA)
                             != PackageManager.PERMISSION_GRANTED) {
                         requestPermissions(new String[]{Manifest.permission.CAMERA}, 1);
                         return;
                     }
                 }
-                startActivityForResult(new Intent(MainActivity.this, QrReaderActivity.class), QR_REQUEST_CODE);
+                startActivityForResult(new Intent(NetworkActivity.this, QrReaderActivity.class), QR_REQUEST_CODE);
             }
         });
     }
@@ -221,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
             fl.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    Toast.makeText(MainActivity.this, textView.getText(), Toast.LENGTH_LONG).show();
+                    Toast.makeText(NetworkActivity.this, textView.getText(), Toast.LENGTH_LONG).show();
                 }
             });
         }

@@ -20,9 +20,10 @@ public class RebroadcastHandler implements TransportHandlerInterface {
 
     @Override
     public void handleTransport(long from, Transport transport) {
-        Transport out = transport.toBuilder()
-                .addPath(commCenter.id())
-                .build();
-        commCenter.sendToAll(out, out.getPathList());
+        if (!transport.getPathList().contains(from)) {
+            // pedantic extra check
+            transport = transport.toBuilder().addPath(from).build();
+        }
+        commCenter.broadcastTransport(transport);
     }
 }

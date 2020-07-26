@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -52,6 +53,13 @@ public class CommCenter extends ConnectionLifecycleCallback {
         }
     }
 
+    public void broadcastTransport(Transport t) {
+        Transport out = t.toBuilder()
+                .addPath(id())
+                .build();
+        sendToAll(out, out.getPathList());
+    }
+
     private synchronized Comm commFor(String remote) {
         Comm c = commsByRemote.get(remote);
         if (c == null) {
@@ -59,6 +67,16 @@ public class CommCenter extends ConnectionLifecycleCallback {
             commsByRemote.put(remote, c);
         }
         return c;
+    }
+
+    synchronized public List<ReceivingHandler> receivers() {
+        List<ReceivingHandler> out = new ArrayList<>();
+        for (TransportHandlerInterface thi : messageHandlers.values()) {
+            if (thi instanceof ReceivingHandler) {
+                out.add((ReceivingHandler) thi);
+            }
+        }
+        return out;
     }
 
     synchronized void recheckState(Comm c) {

@@ -21,12 +21,14 @@ public class ReceivingHandler implements TransportHandlerInterface {
     private final byte[] key;
     private final TweetNaclFast.SecretBox box;
     private final ByteString id;
+    private final CommCenter commCenter;
 
     @Override
     public String type() { return "receive"; }
 
-    public ReceivingHandler(byte[] key) {
+    public ReceivingHandler(byte[] key, CommCenter commCenter) {
         Util.checkArgument(key.length == TweetNaclFast.Box.secretKeyLength, "key wrong length");
+        this.commCenter = commCenter;
         this.key = key;
         this.box = new TweetNaclFast.SecretBox(key);
         MessageDigest digest = null;
@@ -48,11 +50,24 @@ public class ReceivingHandler implements TransportHandlerInterface {
         return key;
     }
 
-    public ReceivingHandler() {
-        this(newKey());
+    public ReceivingHandler(CommCenter commCenter) {
+        this(newKey(), commCenter);
     }
 
     public ByteString id() { return id; }
+
+    public void sendPayload(Payload payload) {
+        byte[] nonce = new byte[TweetNaclFast.SecretBox.nonceLength];
+        Util.randomBytes(nonce);
+        byte[] boxed = box.box(payload.toByteArray(), nonce);
+        synchronized (this) {
+            payloads.add(payload);
+        }
+        commCenter.broadcastTransport(Transport.newBuilder()
+                .setPayload(ByteString.copyFrom(boxed))
+                .setNetworkId(id())
+                .build());
+    }
 
     @Override
     public void handleTransport(long from, Transport transport) {
