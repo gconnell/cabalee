@@ -13,11 +13,23 @@ import com.google.zxing.common.BitMatrix;
 import java.util.logging.Logger;
 
 public class QrShowerActivity extends AppCompatActivity {
-    private static final Logger logger = Logger.getLogger("peerage.qrs");
-    public static final String EXTRA_QR_TO_SHOW = "nl.co.gram.peerage.ExtraQrToShow";
+    private static final Logger logger = Logger.getLogger("outernet.qrs");
+    public static final String EXTRA_QR_TO_SHOW = "nl.co.gram.outernet.ExtraQrToShow";
 
     private String toShow = null;
     private ImageView imgView = null;
+
+    public static final String OUTERNET_PREFIX = "outernet://";
+
+    public static String url(byte[] id) {
+        return OUTERNET_PREFIX + Util.toHex(id);
+    }
+    public static byte[] fromUrl(String url) {
+        if (url == null || !url.startsWith(OUTERNET_PREFIX)) {
+            return null;
+        }
+        return Util.fromHex(url.substring(OUTERNET_PREFIX.length()));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

@@ -12,9 +12,9 @@ import java.util.logging.Logger;
 import me.dm7.barcodescanner.zxing.ZXingScannerView;
 
 public class QrReaderActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
-    private static final Logger logger = Logger.getLogger("peerage.qrr");
+    private static final Logger logger = Logger.getLogger("outernet.qrr");
     private ZXingScannerView mScannerView;
-    public static final String EXTRA_QR_CODE = "nl.co.gram.peerage.ExtraQrCode";
+    public static final String EXTRA_QR_CODE = "nl.co.gram.outernet.ExtraQrCode";
 
     @Override
     public void onCreate(Bundle state) {

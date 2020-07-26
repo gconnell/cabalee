@@ -5,13 +5,18 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Base64;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.AdvertisingOptions;
@@ -53,6 +58,54 @@ public class MainActivity extends AppCompatActivity {
         textView.setText("I am " + commCenter.id() + "\n");
         textView.setMovementMethod(new ScrollingMovementMethod());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        Button init = findViewById(R.id.initiate);
+        init.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ReceivingHandler rh = new ReceivingHandler();
+                commCenter.setReceiver(rh);
+                Toast.makeText(MainActivity.this, "New: " + Util.toHex(rh.id().toByteArray()), Toast.LENGTH_LONG).show();
+                Intent i = new Intent(MainActivity.this, QrShowerActivity.class);
+                i.putExtra(QrShowerActivity.EXTRA_QR_TO_SHOW, QrShowerActivity.url(rh.sooperSecret()));
+                startActivity(i);
+            }
+        });
+        Button add = findViewById(R.id.add);
+        add.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA)
+                            != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(new String[]{Manifest.permission.CAMERA}, 1);
+                    }
+                }
+                startActivityForResult(new Intent(MainActivity.this, QrReaderActivity.class), QR_REQUEST_CODE);
+            }
+        });
+    }
+
+    private static final int QR_REQUEST_CODE = 11229;
+
+    @Override
+    protected void onActivityResult (int requestCode,
+                                     int resultCode,
+                                     Intent data) {
+        logger.info("Request: " + requestCode + ", result: " + (resultCode == RESULT_OK) + " intent: " + data);
+        if (requestCode == QR_REQUEST_CODE && resultCode == RESULT_OK) {
+            String qr = data.getStringExtra(QrReaderActivity.EXTRA_QR_CODE);
+            byte[] key = QrShowerActivity.fromUrl(qr);
+            if (key == null) {
+                logger.severe("invalid key");
+                return;
+            }
+            ReceivingHandler rh = new ReceivingHandler(key);
+            commCenter.setReceiver(rh);
+            Toast.makeText(this, "Added receiver: " + Util.toHex(rh.id().toByteArray()), Toast.LENGTH_LONG).show();
+        } else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
     }
 
     private Runnable doFunStuff = new Runnable() {

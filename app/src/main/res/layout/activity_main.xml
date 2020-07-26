@@ -19,19 +19,19 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/button"
+        android:id="@+id/add"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="OFF"
+        android:text="Connect"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/route"
+        android:id="@+id/initiate"
         android:layout_height="wrap_content"
         android:layout_width="wrap_content"
-        android:text="Route"
-        app:layout_constraintEnd_toStartOf="@+id/button"
+        android:text="Initiate"
+        app:layout_constraintEnd_toStartOf="@+id/add"
         app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

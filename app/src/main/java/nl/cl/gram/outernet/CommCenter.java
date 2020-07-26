@@ -137,6 +137,12 @@ public class CommCenter extends ConnectionLifecycleCallback {
         commFor(s).setState(Comm.State.DISCONNECTED);
     }
 
+    public void setReceiver(ReceivingHandler rh) {
+        synchronized (this) {
+            messageHandlers.put(rh.id(), rh);
+        }
+    }
+
     public void handleTransport(long from, Transport t) {
         if (t.getPathList().contains(localID)) {
             logger.info("discarding transport loop with path: " + t.getPathList());
@@ -145,10 +151,12 @@ public class CommCenter extends ConnectionLifecycleCallback {
         TransportHandlerInterface h;
         synchronized (this) {
             h = messageHandlers.get(t.getNetworkId());
+            if (h == null) {
+                h = new RebroadcastHandler(this);
+                messageHandlers.put(t.getNetworkId(), h);
+            }
         }
-        if (h != null) {
-            logger.info("handling known network transport");
-            h.handleTransport(from, t);
-        }
+        logger.info("handling network " + Util.toHex(t.getNetworkId().toByteArray()) + " with: " + h.type());
+        h.handleTransport(from, t);
     }
 }

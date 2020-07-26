@@ -1,56 +1,22 @@
 package nl.cl.gram.outernet;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-import android.security.keystore.KeyGenParameterSpec;
-import android.security.keystore.KeyProperties;
-import android.security.keystore.KeyProtection;
-import android.util.Base64;
 
-import androidx.security.crypto.EncryptedSharedPreferences;
-import androidx.security.crypto.MasterKeys;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import com.google.crypto.tink.BinaryKeysetReader;
-import com.google.crypto.tink.HybridDecrypt;
-import com.google.crypto.tink.HybridEncrypt;
-import com.google.crypto.tink.KeyTemplate;
-import com.google.crypto.tink.KeysetHandle;
-import com.google.crypto.tink.PublicKeySign;
-import com.google.crypto.tink.PublicKeyVerify;
-import com.google.crypto.tink.aead.AeadKeyTemplates;
 import com.google.crypto.tink.config.TinkConfig;
-import com.google.crypto.tink.hybrid.EciesAeadHkdfPrivateKeyManager;
-import com.google.crypto.tink.hybrid.HybridKeyTemplates;
-import com.google.crypto.tink.proto.Ed25519;
-import com.google.crypto.tink.proto.Ed25519KeyFormat;
-import com.google.crypto.tink.proto.Tink;
-import com.google.crypto.tink.signature.EcdsaSignKeyManager;
-import com.google.crypto.tink.signature.Ed25519PrivateKeyManager;
-import com.goterl.lazycode.lazysodium.LazySodiumAndroid;
-import com.goterl.lazycode.lazysodium.SodiumAndroid;
 import com.iwebpp.crypto.TweetNaclFast;
 import com.sun.jna.Native;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.math.BigInteger;
-import java.security.KeyFactory;
 import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.spec.ECFieldFp;
-import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPoint;
-import java.security.spec.ECPrivateKeySpec;
-import java.security.spec.EllipticCurve;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
 import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -152,14 +118,6 @@ public class ExampleInstrumentedTest {
     }
 
     @Test
-    public void testNetwork() throws Exception {
-        byte[] base = Hyd.Network.newBase();
-        Hyd.Network net = new Hyd.Network(base);
-        byte[] empty  = new byte[Hydrogen.HYDRO_KDF_KEYBYTES];
-        assertFalse(Arrays.equals(empty, base));
-    }
-
-    @Test
     public void testAndroidKeystore() throws Exception {
         byte[] key = new byte[32];
         SecretKeySpec spec = new SecretKeySpec(key, "AES");
@@ -182,21 +140,5 @@ public class ExampleInstrumentedTest {
         byte[] cipher2 = c2.doFinal(new byte[]{1, 2, 3, 4});
         assertFalse(Arrays.equals(cipher, new byte[]{1, 2, 3, 4}));
         assertArrayEquals(cipher, cipher2);
-    }
-
-    @Test
-    public void testEncryptedPreferences() throws Exception {
-        String masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC);
-
-        SharedPreferences sharedPreferences = EncryptedSharedPreferences.create(
-                "secret_shared_prefs",
-                masterKeyAlias,
-                InstrumentationRegistry.getInstrumentation().getTargetContext(),
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        );
-
-        // use the shared preferences and editor as you normally would
-        SharedPreferences.Editor editor = sharedPreferences.edit();
     }
 }

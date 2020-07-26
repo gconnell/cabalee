@@ -10,21 +10,16 @@ import nl.co.gram.outernet.Transport;
 public class RebroadcastHandler implements TransportHandlerInterface {
     private final Logger logger = Logger.getLogger("outernet.hydhandler");
     private final CommCenter commCenter;
-    private final Hyd.Network network;
 
-    public RebroadcastHandler(CommCenter commCenter, @Nullable Hyd.Network network) {
+    public RebroadcastHandler(CommCenter commCenter) {
         this.commCenter = commCenter;
-        this.network = network;
     }
 
     @Override
+    public String type() { return "rebroadcast"; }
+
+    @Override
     public void handleTransport(long from, Transport transport) {
-        try {
-            Hyd.Network.verifyTransport(transport);
-        } catch (GeneralSecurityException e) {
-            logger.severe("unverified transport from " + from + ": dropping");
-            return;
-        }
         Transport out = transport.toBuilder()
                 .addPath(commCenter.id())
                 .build();
