@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         enableLocation();
         startCommService();
-        textView = (TextView) findViewById(R.id.textview);
+        textView = (TextView) findViewById(R.id.inputview);
         textView.setMovementMethod(new ScrollingMovementMethod());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 

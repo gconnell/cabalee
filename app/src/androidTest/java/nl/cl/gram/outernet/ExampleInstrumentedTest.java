@@ -5,9 +5,8 @@ import android.content.Context;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import com.google.crypto.tink.config.TinkConfig;
+import com.google.protobuf.ByteString;
 import com.iwebpp.crypto.TweetNaclFast;
-import com.sun.jna.Native;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -20,7 +19,8 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
-import co.libly.hydride.Hydrogen;
+import nl.co.gram.outernet.MessageContents;
+import nl.co.gram.outernet.Payload;
 
 import static org.junit.Assert.*;
 
@@ -41,9 +41,16 @@ public class ExampleInstrumentedTest {
     }
 
     @Test
-    public void testTink() throws Exception {
-        TinkConfig.register();
-        byte[] key = new byte[32];
+    public void testBoxAndUnbox() {
+        byte[] key = new byte[TweetNaclFast.SecretBox.keyLength];
+        TweetNaclFast.SecretBox box = new TweetNaclFast.SecretBox(key);
+        Payload p = Payload.newBuilder()
+                .setCleartextBroadcast(MessageContents.newBuilder()
+                        .setText("wheee"))
+                .build();
+        ByteString boxed = ReceivingHandler.boxIt(p, box);
+        Payload p2 = ReceivingHandler.unboxIt(boxed, box);
+        assertTrue(p.equals(p2));
     }
 
     @Test
@@ -73,48 +80,6 @@ public class ExampleInstrumentedTest {
         byte[] verified2 = verifier.open(signed2);
         assertNotNull(verified2);
         assertArrayEquals(tosign, verified2);
-    }
-
-    @Test
-    public void testHydrogen() throws Exception {
-        Native.register(Hydrogen.class, "hydrogen");
-        Hydrogen hydrogen = new Hydrogen();
-        hydrogen.hydro_init();
-        {
-            Hydrogen.HydroKxKeyPair kpA = new Hydrogen.HydroKxKeyPair();
-            Hydrogen.HydroKxKeyPair kpB = new Hydrogen.HydroKxKeyPair();
-            hydrogen.hydro_kx_keygen(kpA);
-            hydrogen.hydro_kx_keygen(kpB);
-            byte[] packetAtoB = new byte[Hydrogen.HYDRO_KX_KK_PACKET1BYTES];
-            byte[] packetBtoA = new byte[Hydrogen.HYDRO_KX_KK_PACKET2BYTES];
-            Hydrogen.HydroKxState state1 = new Hydrogen.HydroKxState();
-            Hydrogen.HydroKxSessionKeyPair sessionA = new Hydrogen.HydroKxSessionKeyPair();
-            Hydrogen.HydroKxSessionKeyPair sessionB = new Hydrogen.HydroKxSessionKeyPair();
-            if (0 != hydrogen.hydro_kx_kk_1(state1, packetAtoB, kpB.pk, kpA))
-                throw new Exception("yuk");
-            if (0 != hydrogen.hydro_kx_kk_2(sessionB, packetBtoA, packetAtoB, kpA.pk, kpB))
-                throw new Exception("yuk");
-            if (0 != hydrogen.hydro_kx_kk_3(state1, sessionA, packetBtoA, kpA))
-                throw new Exception("yuk");
-            assertArrayEquals(sessionA.tx, sessionB.rx);
-            assertArrayEquals(sessionA.rx, sessionB.tx);
-        }
-        {
-            assertEquals(Hydrogen.HYDRO_SECRETBOX_KEYBYTES, Hydrogen.HYDRO_SIGN_SEEDBYTES);
-            byte[] skey = new byte[Hydrogen.HYDRO_SECRETBOX_KEYBYTES];
-            hydrogen.hydro_secretbox_keygen(skey);
-            Hydrogen.HydroSignKeyPair kp = new Hydrogen.HydroSignKeyPair();
-            hydrogen.hydro_sign_keygen_deterministic(kp, skey);
-            byte[] sig = new byte[Hydrogen.HYDRO_SIGN_BYTES];
-            byte[] tosign = {1,2,3,4};
-            byte[] context = new byte[Hydrogen.HYDRO_SIGN_CONTEXTBYTES];
-            assertEquals(0, hydrogen.hydro_sign_create(sig, tosign, tosign.length, context, kp.sk));
-            assertEquals(0, hydrogen.hydro_sign_verify(sig, tosign, tosign.length, context, kp.pk));
-            assertNotEquals(0, hydrogen.hydro_sign_verify(sig, tosign, tosign.length-1, context, kp.pk));
-            tosign[0] = 2;
-            assertNotEquals(0, hydrogen.hydro_sign_verify(sig, tosign, tosign.length, context, kp.pk));
-        }
-
     }
 
     @Test

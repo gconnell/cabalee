@@ -4,12 +4,14 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.iwebpp.crypto.TweetNaclFast;
 
-import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import nl.co.gram.outernet.Payload;
@@ -18,6 +20,7 @@ import nl.co.gram.outernet.Transport;
 public class ReceivingHandler implements TransportHandlerInterface {
     private static final Logger logger = Logger.getLogger("outernet.receiver");
     private final List<Payload> payloads = new ArrayList<>();
+    private final Set<ByteString> uniquePayloads = new HashSet<>();
     private final byte[] key;
     private final TweetNaclFast.SecretBox box;
     private final ByteString id;
@@ -46,6 +49,34 @@ public class ReceivingHandler implements TransportHandlerInterface {
         return key;
     }
 
+    public static ByteString boxIt(Payload payload, TweetNaclFast.SecretBox box) {
+        byte[] nonce = new byte[TweetNaclFast.SecretBox.nonceLength];
+        Util.randomBytes(nonce);
+        byte[] boxed = box.box(payload.toByteArray(), nonce);
+        return ByteString.copyFrom(nonce).concat(ByteString.copyFrom(boxed));
+    }
+    public static Payload unboxIt(ByteString bytes, TweetNaclFast.SecretBox box) {
+        Payload payload;
+        if (bytes.size() < TweetNaclFast.SecretBox.nonceLength + TweetNaclFast.SecretBox.overheadLength) {
+            logger.severe("payload too short");
+            return null;
+        }
+        ByteString nonce = bytes.substring(0, TweetNaclFast.SecretBox.nonceLength);
+        ByteString encrypted = bytes.substring(TweetNaclFast.SecretBox.nonceLength);
+        byte[] cleartext = box.open(encrypted.toByteArray(), nonce.toByteArray());
+        if (cleartext == null) {
+            logger.severe("unable to open box");
+            return null;
+        }
+        try {
+            payload = Payload.parseFrom(cleartext);
+        } catch (InvalidProtocolBufferException e) {
+            logger.severe("discarding transport: " + e.getMessage());
+            return null;
+        }
+        return payload;
+    }
+
     public byte[] sooperSecret() {
         return key;
     }
@@ -57,14 +88,17 @@ public class ReceivingHandler implements TransportHandlerInterface {
     public ByteString id() { return id; }
 
     public void sendPayload(Payload payload) {
-        byte[] nonce = new byte[TweetNaclFast.SecretBox.nonceLength];
-        Util.randomBytes(nonce);
-        byte[] boxed = box.box(payload.toByteArray(), nonce);
+        ByteString boxed = boxIt(payload, box);
         synchronized (this) {
-            payloads.add(payload);
+            if (uniquePayloads.add(boxed)) {
+                payloads.add(payload);
+            } else {
+                logger.severe("skipping send of duplicate payload");
+                return;
+            }
         }
         commCenter.broadcastTransport(Transport.newBuilder()
-                .setPayload(ByteString.copyFrom(boxed))
+                .setPayload(boxed)
                 .setNetworkId(id())
                 .build());
     }
@@ -73,24 +107,27 @@ public class ReceivingHandler implements TransportHandlerInterface {
         return new ArrayList<>(payloads);
     }
 
+    public synchronized void clearPayloads() {
+        payloads.clear();
+        uniquePayloads.clear();
+    }
+
     @Override
     public void handleTransport(long from, Transport transport) {
         commCenter.broadcastTransport(transport);
         Util.checkArgument(id.equals(transport.getNetworkId()), "network id mismatch");
-        Payload payload;
-        byte[] cleartext = box.open(transport.getPayload().toByteArray());
-        if (cleartext == null) {
-            logger.severe("unable to open box from " + from);
+        Payload payload = unboxIt(transport.getPayload(), box);
+        if (payload == null) {
+            logger.severe("transport from " + from + " discarded");
             return;
         }
-        try {
-            payload = Payload.parseFrom(box.open(transport.getPayload().toByteArray()));
-        } catch (InvalidProtocolBufferException e) {
-            logger.severe("discarding transport from " + from + ": " + e.getMessage());
-            return;
-        }
+        logger.info("received valid payload from " + from + ": " + payload.toString());
         synchronized (this) {
-            payloads.add(payload);
+            if (uniquePayloads.add(transport.getPayload())) {
+                payloads.add(payload);
+            } else {
+                logger.info("discarding duplicate received payload");
+            }
         }
     }
 }

@@ -20,7 +20,6 @@ enum MsgType {
 message Transport {
   bytes network_id = 1;
   bytes payload = 2;  // marshalled, encrypted Payload object
-  bytes payload_signature = 3;
 
   // NOT SIGNED:
   repeated fixed64 path = 4;

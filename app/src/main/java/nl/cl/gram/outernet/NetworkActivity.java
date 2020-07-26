@@ -5,11 +5,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,6 +25,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.protobuf.ByteString;
 
+import java.util.Date;
+import java.util.List;
 import java.util.logging.Logger;
 
 import nl.co.gram.outernet.MessageContents;
@@ -32,9 +36,12 @@ public class NetworkActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("outernet.netact");
     private ReceivingHandler receivingHandler = null;
     private ByteString networkId = null;
-    private TextView textView = null;
+    private EditText editText = null;
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
+    private Handler handler = new Handler();
+    private LinearLayoutManager linearLayoutManager = null;
+    private String from = "???";
 
     CommService.Binder commServiceBinder = null;
     private ServiceConnection commServiceConnection = new ServiceConnection() {
@@ -44,7 +51,7 @@ public class NetworkActivity extends AppCompatActivity {
             for (ReceivingHandler rh : commServiceBinder.commCenter().receivers()) {
                 if (networkId.equals(rh.id())) {
                     receivingHandler = rh;
-                    textView.setText("Full ID: " + Util.toHex(rh.id().toByteArray()));
+                    from = String.format("%06x", commServiceBinder.commCenter().id() & 0xFFFFFF);
                 }
             }
         }
@@ -57,16 +64,35 @@ public class NetworkActivity extends AppCompatActivity {
 
     public static final String EXTRA_NETWORK_ID = "nl.co.gram.outernet.ExtraNetworkId";
 
+    private Runnable updatePayloads = new Runnable() {
+        @Override
+        public void run() {
+            refreshList();
+            handler.postDelayed(this, 1_000);
+        }
+    };
+
+    private void refreshList() {
+        boolean atBottom = linearLayoutManager.findLastCompletelyVisibleItemPosition() == receiverListAdapter.getItemCount()-1;
+        if (receivingHandler != null) {
+            List<Payload> payloads = receivingHandler.payloads();
+            receiverListAdapter.submitList(payloads);
+            if (atBottom && payloads.size() > 0)
+                recyclerView.smoothScrollToPosition(payloads.size()-1);
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        textView = findViewById(R.id.textview);
+        setContentView(R.layout.activity_network);
+        editText = findViewById(R.id.inputview);
 
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setHasFixedSize(true);
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(layoutManager);
+        linearLayoutManager = new LinearLayoutManager(this);
+        linearLayoutManager.setStackFromEnd(true);
+        recyclerView.setLayoutManager(linearLayoutManager);
         receiverListAdapter = new ReceiverListAdapter();
         recyclerView.setAdapter(receiverListAdapter);
 
@@ -74,7 +100,6 @@ public class NetworkActivity extends AppCompatActivity {
         bindService(new Intent(this, CommService.class), commServiceConnection, Context.BIND_AUTO_CREATE);
 
         Button b = findViewById(R.id.button1);
-        b.setText("Show QR");
         b.setOnClickListener(new View.OnClickListener() {
              @Override
              public void onClick(View v) {
@@ -85,21 +110,44 @@ public class NetworkActivity extends AppCompatActivity {
              }
         });
         Button b2 = findViewById(R.id.button2);
-        b2.setText("Send test");
         b2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (receivingHandler != null) {
+                    receivingHandler.clearPayloads();
+                }
+            }
+        });
+        Button b3 = findViewById(R.id.button3);
+        b3.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
                 if (receivingHandler == null) return;
+                String out = editText.getText().toString();
+                if (out.isEmpty()) return;
+                editText.getText().clear();
                 Payload p = Payload.newBuilder()
                         .setCleartextBroadcast(MessageContents.newBuilder()
-                                .setFrom("gram")
-                                .setText("wheee")
+                                .setFrom(from)
+                                .setText(out)
                                 .setTimestamp(Util.now())
                                 .build())
                         .build();
                 receivingHandler.sendPayload(p);
+                refreshList();
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        handler.post(updatePayloads);
+    }
+    @Override
+    protected void onPause() {
+        super.onPause();
+        handler.removeCallbacks(updatePayloads);
     }
 
     @Override
@@ -131,7 +179,8 @@ public class NetworkActivity extends AppCompatActivity {
             switch (data.getKindCase()) {
                 case CLEARTEXT_BROADCAST: {
                     MessageContents contents = data.getCleartextBroadcast();
-                    textView.setText("From " + contents.getFrom() + " at " + contents.getTimestamp().getSeconds() + "\n");
+                    Date d = new Date(contents.getTimestamp().getSeconds() * 1000L + (long) (contents.getTimestamp().getNanos() / 1000000));
+                    textView.setText("From " + contents.getFrom() + " at " + d + "\n");
                     textView.append(contents.getText());
                     if (contents.hasLocation()) {
                         textView.append("\n@{" + contents.getLocation().getLatitude() + "," + contents.getLocation().getLongitude() + "}");
