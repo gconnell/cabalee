@@ -30,7 +30,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private Map<Long, Comm> commsByID = new HashMap<>();
     private Map<String, Comm> commsByRemote = new HashMap<>();
     private final ConnectionsClient connectionsClient;
-    private Map<ByteString, TransportHandler> messageHandlers = new HashMap<>();
+    private Map<ByteString, TransportHandlerInterface> messageHandlers = new HashMap<>();
 
     CommCenter(ConnectionsClient connectionsClient) {
         localID = Util.newRandomID();
@@ -142,7 +142,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
             logger.info("discarding transport loop with path: " + t.getPathList());
             return;
         }
-        TransportHandler h;
+        TransportHandlerInterface h;
         synchronized (this) {
             h = messageHandlers.get(t.getNetworkId());
         }

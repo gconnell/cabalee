@@ -1,7 +1,5 @@
 package nl.cl.gram.outernet;
 
-import androidx.core.util.Preconditions;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.sun.jna.Native;

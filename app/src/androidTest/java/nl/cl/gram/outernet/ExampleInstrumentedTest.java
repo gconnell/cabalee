@@ -1,11 +1,18 @@
 package nl.cl.gram.outernet;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
+import android.security.keystore.KeyProtection;
 import android.util.Base64;
 
+import androidx.security.crypto.EncryptedSharedPreferences;
+import androidx.security.crypto.MasterKeys;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import com.google.crypto.tink.BinaryKeysetReader;
 import com.google.crypto.tink.HybridDecrypt;
 import com.google.crypto.tink.HybridEncrypt;
 import com.google.crypto.tink.KeyTemplate;
@@ -29,8 +36,23 @@ import com.sun.jna.Native;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.math.BigInteger;
+import java.security.KeyFactory;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.ECFieldFp;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPoint;
+import java.security.spec.ECPrivateKeySpec;
+import java.security.spec.EllipticCurve;
 import java.util.Arrays;
 import java.util.logging.Logger;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import co.libly.hydride.Hydrogen;
 
@@ -55,9 +77,7 @@ public class ExampleInstrumentedTest {
     @Test
     public void testTink() throws Exception {
         TinkConfig.register();
-        KeysetHandle networkPrivate = KeysetHandle.generateNew(
-                Ed25519PrivateKeyManager.rawEd25519Template());
-        KeysetHandle networkPublic = networkPrivate.getPublicKeysetHandle();
+        byte[] key = new byte[32];
     }
 
     @Test
@@ -137,5 +157,46 @@ public class ExampleInstrumentedTest {
         Hyd.Network net = new Hyd.Network(base);
         byte[] empty  = new byte[Hydrogen.HYDRO_KDF_KEYBYTES];
         assertFalse(Arrays.equals(empty, base));
+    }
+
+    @Test
+    public void testAndroidKeystore() throws Exception {
+        byte[] key = new byte[32];
+        SecretKeySpec spec = new SecretKeySpec(key, "AES");
+        SecretKey k = spec;
+        KeyStore.SecretKeyEntry entry = new KeyStore.SecretKeyEntry(k);
+
+        KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+        keyStore.load(null);
+        keyStore.setEntry("myhappykey", entry, null);
+
+        final KeyStore.SecretKeyEntry secretKeyEntry = (KeyStore.SecretKeyEntry) keyStore
+                .getEntry("myhappykey", null);
+        SecretKey k2 = secretKeyEntry.getSecretKey();
+
+        Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+        c.init(Cipher.ENCRYPT_MODE, k);
+        byte[] cipher = c.doFinal(new byte[]{1, 2, 3, 4});
+        Cipher c2 = Cipher.getInstance("AES/GCM/NoPadding");
+        c2.init(Cipher.ENCRYPT_MODE, k2);
+        byte[] cipher2 = c2.doFinal(new byte[]{1, 2, 3, 4});
+        assertFalse(Arrays.equals(cipher, new byte[]{1, 2, 3, 4}));
+        assertArrayEquals(cipher, cipher2);
+    }
+
+    @Test
+    public void testEncryptedPreferences() throws Exception {
+        String masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC);
+
+        SharedPreferences sharedPreferences = EncryptedSharedPreferences.create(
+                "secret_shared_prefs",
+                masterKeyAlias,
+                InstrumentationRegistry.getInstrumentation().getTargetContext(),
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        );
+
+        // use the shared preferences and editor as you normally would
+        SharedPreferences.Editor editor = sharedPreferences.edit();
     }
 }
