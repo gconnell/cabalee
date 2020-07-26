@@ -97,4 +97,10 @@ public class Util {
     public static double nanosAsSeconds(long nanos) {
         return ((double) nanos) / 1_000_000_000D;
     }
+
+    public static void checkArgument(boolean arg, String msg) {
+        if (!arg) {
+            throw new IllegalArgumentException(msg);
+        }
+    }
 }
