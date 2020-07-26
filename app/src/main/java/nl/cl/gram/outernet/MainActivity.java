@@ -28,6 +28,7 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.logging.Logger;
 
@@ -40,12 +41,21 @@ public class MainActivity extends AppCompatActivity {
     private ReceiverListAdapter receiverListAdapter = null;
     private CommService.Binder commServiceBinder = null;
 
+    private void refresh() {
+        if (commServiceBinder == null) {
+            receiverListAdapter.submitList(new ArrayList<>());
+            return;
+        }
+        CommCenter commCenter = commServiceBinder.commCenter();
+        receiverListAdapter.submitList(commCenter.receivers());
+    }
+
     private ServiceConnection commServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             commServiceBinder = (CommService.Binder) service;
-            receiverListAdapter.submitList(commServiceBinder.commCenter().receivers());
             textView.append("I am " + commServiceBinder.commCenter().id() + "\n");
+            refresh();
         }
 
         @Override
@@ -89,10 +99,8 @@ public class MainActivity extends AppCompatActivity {
                 CommCenter commCenter = commServiceBinder.commCenter();
                 ReceivingHandler rh = new ReceivingHandler(commCenter);
                 commCenter.setReceiver(rh);
+                refresh();
                 Toast.makeText(MainActivity.this, "New: " + Util.toHex(rh.id().toByteArray()), Toast.LENGTH_LONG).show();
-                Intent i = new Intent(MainActivity.this, QrShowerActivity.class);
-                i.putExtra(QrShowerActivity.EXTRA_QR_TO_SHOW, QrShowerActivity.url(rh.sooperSecret()));
-                startActivity(i);
             }
         });
         Button add = findViewById(R.id.button2);
@@ -164,6 +172,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        refresh();
         handler.post(doFunStuff);
     }
 
@@ -206,7 +215,9 @@ public class MainActivity extends AppCompatActivity {
             fl.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    Toast.makeText(MainActivity.this, textView.getText(), Toast.LENGTH_LONG).show();
+                    Intent intent = new Intent(MainActivity.this, NetworkActivity.class);
+                    intent.putExtra(NetworkActivity.EXTRA_NETWORK_ID, receivingHandler.id().toByteArray());
+                    startActivity(intent);
                 }
             });
         }

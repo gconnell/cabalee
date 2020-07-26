@@ -24,6 +24,10 @@
             android:name=".QrShowerActivity"
             android:label="QR Code Shower">
         </activity>
+        <activity
+            android:name=".NetworkActivity"
+            android:label="Network Activity">
+        </activity>
         <service android:name=".CommService" />
     </application>
 
