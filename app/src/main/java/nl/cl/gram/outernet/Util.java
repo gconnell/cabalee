@@ -1,5 +1,9 @@
 package nl.cl.gram.outernet;
 
+import android.os.SystemClock;
+
+import com.google.protobuf.Timestamp;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -85,6 +89,14 @@ public class Util {
         while (bytesRead < buf.length) {
             bytesRead += is.read(buf, bytesRead, buf.length-bytesRead);
         }
+    }
+
+    public static Timestamp now() {
+        long millis = System.currentTimeMillis();
+        return Timestamp.newBuilder()
+                .setSeconds(millis / 1000)
+                .setNanos((int) ((millis % 1000L) * 1000000L))
+                .build();
     }
 
     public static long newRandomID() {

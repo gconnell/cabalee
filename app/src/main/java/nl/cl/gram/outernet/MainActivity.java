@@ -131,7 +131,6 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         logger.info("Request: " + requestCode + ", result: " + (resultCode == RESULT_OK) + " intent: " + data);
         if (requestCode == QR_REQUEST_CODE && resultCode == RESULT_OK) {
-            logger.severe("got");
             String qr = data.getStringExtra(QrReaderActivity.EXTRA_QR_CODE);
             byte[] key = QrShowerActivity.fromUrl(qr);
             if (key == null) {

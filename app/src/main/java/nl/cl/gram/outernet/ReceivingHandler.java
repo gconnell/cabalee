@@ -69,10 +69,20 @@ public class ReceivingHandler implements TransportHandlerInterface {
                 .build());
     }
 
+    public synchronized List<Payload> payloads() {
+        return new ArrayList<>(payloads);
+    }
+
     @Override
     public void handleTransport(long from, Transport transport) {
+        commCenter.broadcastTransport(transport);
         Util.checkArgument(id.equals(transport.getNetworkId()), "network id mismatch");
         Payload payload;
+        byte[] cleartext = box.open(transport.getPayload().toByteArray());
+        if (cleartext == null) {
+            logger.severe("unable to open box from " + from);
+            return;
+        }
         try {
             payload = Payload.parseFrom(box.open(transport.getPayload().toByteArray()));
         } catch (InvalidProtocolBufferException e) {

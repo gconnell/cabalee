@@ -25,6 +25,9 @@ import com.google.protobuf.ByteString;
 
 import java.util.logging.Logger;
 
+import nl.co.gram.outernet.MessageContents;
+import nl.co.gram.outernet.Payload;
+
 public class NetworkActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("outernet.netact");
     private ReceivingHandler receivingHandler = null;
@@ -81,6 +84,22 @@ public class NetworkActivity extends AppCompatActivity {
                  startActivity(i);
              }
         });
+        Button b2 = findViewById(R.id.button2);
+        b2.setText("Send test");
+        b2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (receivingHandler == null) return;
+                Payload p = Payload.newBuilder()
+                        .setCleartextBroadcast(MessageContents.newBuilder()
+                                .setFrom("gram")
+                                .setText("wheee")
+                                .setTimestamp(Util.now())
+                                .build())
+                        .build();
+                receivingHandler.sendPayload(p);
+            }
+        });
     }
 
     @Override
@@ -93,7 +112,7 @@ public class NetworkActivity extends AppCompatActivity {
         // each data item is just a string in this case
         public FrameLayout frameLayout;
         public TextView textView;
-        ReceivingHandler receivingHandler = null;
+        Payload payload = null;
         public MyViewHolder(FrameLayout fl) {
             super(fl);
             frameLayout = fl;
@@ -106,26 +125,35 @@ public class NetworkActivity extends AppCompatActivity {
             });
         }
 
-        void bindTo(ReceivingHandler data) {
-            receivingHandler = data;
-            String hex = Util.toHex(data.id().toByteArray());
-            textView.setText(hex.substring(0, 6) + "...." + hex.substring(hex.length()-6));
+        void bindTo(Payload data) {
+            payload = data;
+            textView.setText("?");
+            switch (data.getKindCase()) {
+                case CLEARTEXT_BROADCAST: {
+                    MessageContents contents = data.getCleartextBroadcast();
+                    textView.setText("From " + contents.getFrom() + " at " + contents.getTimestamp().getSeconds() + "\n");
+                    textView.append(contents.getText());
+                    if (contents.hasLocation()) {
+                        textView.append("\n@{" + contents.getLocation().getLatitude() + "," + contents.getLocation().getLongitude() + "}");
+                    }
+                }
+            }
         }
     }
 
-    public static final DiffUtil.ItemCallback<ReceivingHandler> DIFF_CALLBACK  = new DiffUtil.ItemCallback<ReceivingHandler>() {
+    public static final DiffUtil.ItemCallback<Payload> DIFF_CALLBACK  = new DiffUtil.ItemCallback<Payload>() {
         @Override
-        public boolean areItemsTheSame(@NonNull ReceivingHandler oldItem, @NonNull ReceivingHandler newItem) {
+        public boolean areItemsTheSame(@NonNull Payload oldItem, @NonNull Payload newItem) {
             return oldItem.equals(newItem);
         }
 
         @Override
-        public boolean areContentsTheSame(@NonNull ReceivingHandler oldItem, @NonNull ReceivingHandler newItem) {
-            return oldItem.id().equals(newItem.id());
+        public boolean areContentsTheSame(@NonNull Payload oldItem, @NonNull Payload newItem) {
+            return oldItem.equals(newItem);
         }
     };
 
-    class ReceiverListAdapter extends ListAdapter<ReceivingHandler, MyViewHolder> {
+    class ReceiverListAdapter extends ListAdapter<Payload, MyViewHolder> {
         public ReceiverListAdapter() {
             super(DIFF_CALLBACK);
         }
