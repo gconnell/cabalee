@@ -9,11 +9,15 @@ import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.text.method.ScrollingMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -24,38 +28,48 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.nearby.Nearby;
-import com.google.android.gms.nearby.connection.AdvertisingOptions;
-import com.google.android.gms.nearby.connection.ConnectionsClient;
-import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
-import com.google.android.gms.nearby.connection.DiscoveryOptions;
-import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
-import com.google.android.gms.nearby.connection.Strategy;
-
 import java.util.Date;
 import java.util.logging.Logger;
 
 
 public class MainActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("outernet.main");
-    private static final String SERVICE_ID = "nl.co.gram.outernet";
-    ConnectionsClient connectionsClient = null;
     private TextView textView = null;
-    private CommCenter commCenter = null;
     private Handler handler = new Handler();
-    private static final Strategy strategy = Strategy.P2P_CLUSTER;
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
+    private CommService.Binder commServiceBinder = null;
+
+    private ServiceConnection commServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            commServiceBinder = (CommService.Binder) service;
+            receiverListAdapter.submitList(commServiceBinder.commCenter().receivers());
+            textView.append("I am " + commServiceBinder.commCenter().id() + "\n");
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            commServiceBinder = null;
+        }
+    };
+
+    void startCommService() {
+        Intent intent = new Intent(this, CommService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         enableLocation();
-        connectionsClient = Nearby.getConnectionsClient(this);
-        commCenter = new CommCenter(connectionsClient);
+        startCommService();
         textView = (TextView) findViewById(R.id.textview);
-        textView.setText("I am " + commCenter.id() + "\n");
         textView.setMovementMethod(new ScrollingMovementMethod());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
@@ -71,6 +85,8 @@ public class MainActivity extends AppCompatActivity {
         init.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (commServiceBinder == null) { return; }
+                CommCenter commCenter = commServiceBinder.commCenter();
                 ReceivingHandler rh = new ReceivingHandler(commCenter);
                 commCenter.setReceiver(rh);
                 Toast.makeText(MainActivity.this, "New: " + Util.toHex(rh.id().toByteArray()), Toast.LENGTH_LONG).show();
@@ -94,6 +110,8 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(new Intent(MainActivity.this, QrReaderActivity.class), QR_REQUEST_CODE);
             }
         });
+        Intent intent = new Intent(this, CommService.class);
+        bindService(intent, commServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
     private static final int QR_REQUEST_CODE = 1;
@@ -112,6 +130,11 @@ public class MainActivity extends AppCompatActivity {
                 logger.severe("invalid key");
                 return;
             }
+            if (commServiceBinder == null) {
+                logger.severe("no comm service");
+                return;
+            }
+            CommCenter commCenter = commServiceBinder.commCenter();
             ReceivingHandler rh = new ReceivingHandler(key, commCenter);
             commCenter.setReceiver(rh);
             Toast.makeText(this, "Added receiver: " + Util.toHex(rh.id().toByteArray()), Toast.LENGTH_LONG).show();
@@ -123,27 +146,42 @@ public class MainActivity extends AppCompatActivity {
         public void run() {
             Date d = new Date();
             textView.append("At " + d + "\n");
-            for (Comm c : commCenter.activeComms()) {
-                textView.append("  connected to: " + c.remoteID() + " at " + c.remote() + "\n");
+            if (commServiceBinder != null) {
+                for (Comm c : commServiceBinder.commCenter().activeComms()) {
+                    textView.append("  connected to: " + c.remoteID() + " at " + c.remote() + "\n");
+                }
             }
             handler.postDelayed(this, 15_000);
         }
     };
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        handler.removeCallbacks(doFunStuff);
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
-        receiverListAdapter.submitList(commCenter.receivers());
+        handler.post(doFunStuff);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         logger.info("Stopping");
-        handler.removeCallbacks(doFunStuff);
-        connectionsClient.stopAdvertising();
-        connectionsClient.stopDiscovery();
-        connectionsClient.stopAllEndpoints();
+        unbindService(commServiceConnection);
     }
 
     private void enableLocation() {
@@ -153,59 +191,6 @@ public class MainActivity extends AppCompatActivity {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
             }
         }
-    }
-
-    private void startDiscovery() {
-        DiscoveryOptions discoveryOptions =
-                new DiscoveryOptions.Builder().setStrategy(strategy).build();
-        EndpointDiscoveryCallback callback = new EndpointDiscoveryCallback() {
-            @Override
-            public void onEndpointFound(@NonNull String s, @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
-                logger.info("onEndpointFound: " + s);
-                connectionsClient
-                        .requestConnection(Long.toString(commCenter.id()), s, commCenter)
-                        .addOnSuccessListener(
-                                (Void unused) -> {
-                                    logger.info("requesting connection to " + s + " succeeded");
-                                })
-                        .addOnFailureListener(
-                                (Exception e) -> {
-                                    logger.info("requesting connection to " + s + " failed: " + e.getMessage());
-                                });
-            }
-
-            @Override
-            public void onEndpointLost(@NonNull String s) {
-                logger.info("onEndpointLost: " + s);
-            }
-        };
-        connectionsClient
-                .startDiscovery(SERVICE_ID, callback, discoveryOptions)
-                .addOnSuccessListener(
-                        (Void unused) -> {
-                            logger.info("Discovering started");
-                        })
-                .addOnFailureListener(
-                        (Exception e) -> {
-                            logger.severe("Discovering failed: " + e.getMessage());
-                            e.printStackTrace();
-                        });
-    }
-
-    private void startAdvertising() {
-        AdvertisingOptions advertisingOptions =
-                new AdvertisingOptions.Builder().setStrategy(strategy).build();
-        connectionsClient
-                .startAdvertising(Long.toString(commCenter.id()), SERVICE_ID, commCenter, advertisingOptions)
-                .addOnSuccessListener(
-                        (Void unused) -> {
-                            logger.info("Advertizing started");
-                        })
-                .addOnFailureListener(
-                        (Exception e) -> {
-                            logger.severe("Advertizing failed: " + e.getMessage());
-                            e.printStackTrace();
-                        });
     }
 
 

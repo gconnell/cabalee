@@ -24,7 +24,7 @@
             android:name=".QrShowerActivity"
             android:label="QR Code Shower">
         </activity>
-
+        <service android:name=".CommService" />
     </application>
 
     <!-- Required for Nearby Connections -->

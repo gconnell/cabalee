@@ -31,6 +31,7 @@ import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
 import com.google.android.gms.nearby.connection.DiscoveryOptions;
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
 import com.google.android.gms.nearby.connection.Strategy;
+import com.google.protobuf.ByteString;
 
 import java.util.Date;
 import java.util.logging.Logger;
@@ -52,6 +53,8 @@ public class NetworkActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        ByteString networkId = ByteString.copyFrom(getIntent().getByteArrayExtra(EXTRA_NETWORK_ID));
         enableLocation();
         connectionsClient = Nearby.getConnectionsClient(this);
         commCenter = new CommCenter(connectionsClient);
