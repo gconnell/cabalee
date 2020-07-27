@@ -7,11 +7,7 @@ import com.iwebpp.crypto.TweetNaclFast;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import nl.co.gram.outernet.Payload;
@@ -20,7 +16,6 @@ import nl.co.gram.outernet.Transport;
 public class ReceivingHandler implements TransportHandlerInterface {
     private static final Logger logger = Logger.getLogger("outernet.receiver");
     private final List<Payload> payloads = new ArrayList<>();
-    private final Set<ByteString> uniquePayloads = new HashSet<>();
     private final byte[] key;
     private final TweetNaclFast.SecretBox box;
     private final ByteString id;
@@ -90,12 +85,7 @@ public class ReceivingHandler implements TransportHandlerInterface {
     public void sendPayload(Payload payload) {
         ByteString boxed = boxIt(payload, box);
         synchronized (this) {
-            if (uniquePayloads.add(boxed)) {
-                payloads.add(payload);
-            } else {
-                logger.severe("skipping send of duplicate payload");
-                return;
-            }
+            payloads.add(payload);
         }
         commCenter.broadcastTransport(Transport.newBuilder()
                 .setPayload(boxed)
@@ -109,7 +99,6 @@ public class ReceivingHandler implements TransportHandlerInterface {
 
     public synchronized void clearPayloads() {
         payloads.clear();
-        uniquePayloads.clear();
     }
 
     @Override
@@ -123,11 +112,7 @@ public class ReceivingHandler implements TransportHandlerInterface {
         }
         logger.info("received valid payload from " + from + ": " + payload.toString());
         synchronized (this) {
-            if (uniquePayloads.add(transport.getPayload())) {
-                payloads.add(payload);
-            } else {
-                logger.info("discarding duplicate received payload");
-            }
+            payloads.add(payload);
         }
     }
 }

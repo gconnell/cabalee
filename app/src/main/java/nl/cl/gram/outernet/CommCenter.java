@@ -14,11 +14,16 @@ import com.google.protobuf.ByteString;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import nl.co.gram.outernet.Hello;
@@ -32,6 +37,9 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private Map<String, Comm> commsByRemote = new HashMap<>();
     private final ConnectionsClient connectionsClient;
     private Map<ByteString, TransportHandlerInterface> messageHandlers = new HashMap<>();
+    private LinkedList<Set<ByteString>> recentUniqueMessages = new LinkedList<>();
+    private final static int PER_SET_RECENT = 16 * 1024;
+    private final static int NUM_SETS_RECENT = 8;
 
     CommCenter(ConnectionsClient connectionsClient) {
         localID = Util.newRandomID();
@@ -161,9 +169,53 @@ public class CommCenter extends ConnectionLifecycleCallback {
         }
     }
 
-    public void handleTransport(long from, Transport t) {
+    private boolean discardTransport(Transport t) {
+        if (t.getNetworkId().size() != 32) {
+            logger.severe("invaild transport, network ID wrong size");
+            return true;
+        }
         if (t.getPathList().contains(localID)) {
             logger.info("discarding transport loop with path: " + t.getPathList());
+        }
+        MessageDigest d;
+        try {
+            d = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("no sha256");
+        }
+        d.update((byte) t.getNetworkId().size());
+        d.update(t.getNetworkId().asReadOnlyByteBuffer());
+        d.update(t.getPayload().asReadOnlyByteBuffer());
+        ByteString uid = ByteString.copyFrom(d.digest());
+        // we do some mild trickiness to get constant-time checks for uniqueness while also
+        // aging out older IDs, by having a fixed number of constant-time-lookup sets,
+        // in a linked list which allows constant time removal and addition of sets.
+        synchronized (this) {
+            if (recentUniqueMessages.isEmpty()) {
+                recentUniqueMessages.add(new HashSet<>());
+            }
+            Set<ByteString> latest = null;
+            for (Set<ByteString> ids : recentUniqueMessages) {
+                if (ids.contains(uid)) {
+                    logger.info("discarding duplicate message ID");
+                    return true;
+                }
+                latest = ids;
+            }
+            if (latest.size() >= PER_SET_RECENT) {
+                latest = new HashSet<>();
+                recentUniqueMessages.add(latest);
+                if (recentUniqueMessages.size() > NUM_SETS_RECENT) {
+                    recentUniqueMessages.removeFirst();
+                }
+            }
+            latest.add(uid);
+            return false;
+        }
+    }
+
+    public void handleTransport(long from, Transport t) {
+        if (discardTransport(t)) {
             return;
         }
         TransportHandlerInterface h;
