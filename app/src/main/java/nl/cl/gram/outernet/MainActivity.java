@@ -33,7 +33,7 @@ import java.util.logging.Logger;
 
 public class MainActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("outernet.main");
-    private Handler handler = new Handler();
+    private Handler handler = null;
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
     private CommService.Binder commServiceBinder = null;
@@ -73,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        handler = new Handler(getMainLooper());
         setContentView(R.layout.activity_main);
         enableLocation();
         startCommService();
@@ -214,11 +215,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toNetworkPage(ReceivingHandler rh) {
-        Intent intent = new Intent(MainActivity.this, NetworkActivity.class);
-        intent.putExtra(NetworkActivity.EXTRA_NETWORK_ID, rh.id().toByteArray());
-        startActivity(intent, ActivityOptions.makeSceneTransitionAnimation(this).toBundle());
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                Intent intent = new Intent(MainActivity.this, NetworkActivity.class);
+                intent.putExtra(NetworkActivity.EXTRA_NETWORK_ID, rh.id().toByteArray());
+                startActivity(intent, ActivityOptions.makeSceneTransitionAnimation(MainActivity.this).toBundle());
+            }
+        });
     }
-
 
     public static final DiffUtil.ItemCallback<ReceivingHandler> DIFF_CALLBACK  = new DiffUtil.ItemCallback<ReceivingHandler>() {
         @Override

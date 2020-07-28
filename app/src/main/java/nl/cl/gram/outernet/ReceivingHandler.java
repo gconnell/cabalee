@@ -114,5 +114,6 @@ public class ReceivingHandler implements TransportHandlerInterface {
         synchronized (this) {
             payloads.add(payload);
         }
+        commCenter.messageReceived(this);
     }
 }

@@ -234,4 +234,8 @@ public class CommCenter extends ConnectionLifecycleCallback {
         logger.info("handling network " + Util.toHex(t.getNetworkId().toByteArray()) + " with: " + h.type());
         h.handleTransport(from, t);
     }
+
+    public void messageReceived(ReceivingHandler receivingHandler) {
+        commService.notificationFor(receivingHandler);
+    }
 }
