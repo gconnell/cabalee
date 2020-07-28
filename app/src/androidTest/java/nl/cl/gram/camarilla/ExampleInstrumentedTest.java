@@ -1,4 +1,4 @@
-package nl.cl.gram.outernet;
+package nl.cl.gram.camarilla;
 
 import android.content.Context;
 

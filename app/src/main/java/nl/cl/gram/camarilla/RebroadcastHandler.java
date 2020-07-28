@@ -1,14 +1,11 @@
-package nl.cl.gram.outernet;
+package nl.cl.gram.camarilla;
 
-import java.security.GeneralSecurityException;
 import java.util.logging.Logger;
 
-import javax.annotation.Nullable;
-
-import nl.co.gram.outernet.Transport;
+import nl.co.gram.camarilla.Transport;
 
 public class RebroadcastHandler implements TransportHandlerInterface {
-    private final Logger logger = Logger.getLogger("outernet.hydhandler");
+    private final Logger logger = Logger.getLogger("camarilla.hydhandler");
     private final CommCenter commCenter;
 
     public RebroadcastHandler(CommCenter commCenter) {

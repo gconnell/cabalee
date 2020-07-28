@@ -1,4 +1,4 @@
-package nl.cl.gram.outernet;
+package nl.cl.gram.camarilla;
 
 public interface Stream<T> {
     void onNext(T t);

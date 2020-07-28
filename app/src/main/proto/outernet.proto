@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-package nl.co.gram.outernet;
-option java_package = "nl.co.gram.outernet";
+package nl.co.gram.camarilla;
+option java_package = "nl.co.gram.camarilla";
 option java_multiple_files = true;
 
 import "google/protobuf/timestamp.proto";

@@ -1,8 +1,8 @@
-package nl.cl.gram.outernet;
+package nl.cl.gram.camarilla;
 
 import com.google.protobuf.ByteString;
 
-import nl.co.gram.outernet.MessageContents;
+import nl.co.gram.camarilla.MessageContents;
 
 public interface MessageCenter {
     void handleBroadcast(ByteString sender, MessageContents contents);

@@ -1,4 +1,4 @@
-package nl.cl.gram.outernet;
+package nl.cl.gram.camarilla;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -10,11 +10,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-import nl.co.gram.outernet.Payload;
-import nl.co.gram.outernet.Transport;
+import nl.co.gram.camarilla.Payload;
+import nl.co.gram.camarilla.Transport;
 
 public class ReceivingHandler implements TransportHandlerInterface {
-    private static final Logger logger = Logger.getLogger("outernet.receiver");
+    private static final Logger logger = Logger.getLogger("camarilla.receiver");
     private final List<Payload> payloads = new ArrayList<>();
     private final byte[] key;
     private final TweetNaclFast.SecretBox box;

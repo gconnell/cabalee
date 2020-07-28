@@ -1,4 +1,4 @@
-package nl.cl.gram.outernet;
+package nl.cl.gram.camarilla;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 
 
 public class MainActivity extends AppCompatActivity {
-    private static final Logger logger = Logger.getLogger("outernet.main");
+    private static final Logger logger = Logger.getLogger("camarilla.main");
     private Handler handler = null;
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
@@ -210,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
         void bindTo(ReceivingHandler data) {
             receivingHandler = data;
             String hex = Util.toHex(data.id().toByteArray());
-            textView.setText("Session: " + Util.toTitle(data.id().toByteArray()));
+            textView.setText("Cabal: " + Util.toTitle(data.id().toByteArray()));
         }
     }
 

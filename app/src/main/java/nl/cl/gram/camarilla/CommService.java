@@ -1,4 +1,4 @@
-package nl.cl.gram.outernet;
+package nl.cl.gram.camarilla;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 public class CommService extends Service {
-    private static final Logger logger = Logger.getLogger("outernet.commservice");
+    private static final Logger logger = Logger.getLogger("camarilla.commservice");
     private static final int NOTIFICATION_ID = 1;
     private static final String STOP_SERVICE = "SERVICE_KILL_THYSELF";
     private static final String CHANNEL_ID = "comm";
@@ -37,7 +37,7 @@ public class CommService extends Service {
     private ConnectionsClient connectionsClient = null;
     private CommCenter commCenter = null;
     private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
-    private static final String SERVICE_ID = "nl.co.gram.outernet";
+    private static final String SERVICE_ID = "nl.co.gram.camarilla";
     private NotificationManager notificationManager = null;
     private static final AtomicInteger notificationIdGen = new AtomicInteger(2);
 
@@ -80,8 +80,8 @@ public class CommService extends Service {
 
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            notificationManager.createNotificationChannel(new NotificationChannel(CHANNEL_ID, "Outernet", NotificationManager.IMPORTANCE_LOW));
-            notificationManager.createNotificationChannel(new NotificationChannel(MESSAGE_CHANNEL_ID, "Messages", NotificationManager.IMPORTANCE_DEFAULT));
+            notificationManager.createNotificationChannel(new NotificationChannel(CHANNEL_ID, "Camarilla", NotificationManager.IMPORTANCE_LOW));
+            notificationManager.createNotificationChannel(new NotificationChannel(MESSAGE_CHANNEL_ID, "Cabals", NotificationManager.IMPORTANCE_DEFAULT));
         }
 
         startForeground(NOTIFICATION_ID, notification());
@@ -98,7 +98,7 @@ public class CommService extends Service {
         PendingIntent intent = PendingIntent.getActivity(this, 0, main, PendingIntent.FLAG_UPDATE_CURRENT);
         String description = "Connections: " + (commCenter == null ? 0 : commCenter.activeComms().size());
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Outernet")
+                .setContentTitle("Camarilla")
                 .setContentText(description)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)

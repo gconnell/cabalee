@@ -1,10 +1,6 @@
-package nl.cl.gram.outernet;
-
-import android.content.Intent;
-import android.os.Handler;
+package nl.cl.gram.camarilla;
 
 import androidx.annotation.NonNull;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.nearby.connection.ConnectionInfo;
 import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
@@ -28,12 +24,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import nl.co.gram.outernet.Hello;
-import nl.co.gram.outernet.MsgType;
-import nl.co.gram.outernet.Transport;
+import nl.co.gram.camarilla.Hello;
+import nl.co.gram.camarilla.MsgType;
+import nl.co.gram.camarilla.Transport;
 
 public class CommCenter extends ConnectionLifecycleCallback {
-    private static final Logger logger = Logger.getLogger("outernet.center");
+    private static final Logger logger = Logger.getLogger("camarilla.center");
     private final long localID;
     private final CommService commService;
     private Map<Long, Comm> commsByID = new HashMap<>();

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="nl.cl.gram.outernet">
+    package="nl.cl.gram.camarilla">
 
     <application
         android:allowBackup="true"
@@ -9,7 +9,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity">
+        <activity android:name="nl.cl.gram.camarilla.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -17,18 +17,18 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".QrReaderActivity"
+            android:name="nl.cl.gram.camarilla.QrReaderActivity"
             android:label="QR Code Reader">
         </activity>
         <activity
-            android:name=".QrShowerActivity"
+            android:name="nl.cl.gram.camarilla.QrShowerActivity"
             android:label="QR Code Shower">
         </activity>
         <activity
-            android:name=".NetworkActivity"
+            android:name="nl.cl.gram.camarilla.NetworkActivity"
             android:label="Network Activity">
         </activity>
-        <service android:name=".CommService" />
+        <service android:name="nl.cl.gram.camarilla.CommService" />
     </application>
 
     <!-- Required for Nearby Connections -->

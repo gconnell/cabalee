@@ -1,4 +1,4 @@
-package nl.cl.gram.outernet;
+package nl.cl.gram.camarilla;
 
 import androidx.annotation.NonNull;
 
@@ -10,12 +10,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import nl.co.gram.outernet.Hello;
-import nl.co.gram.outernet.MsgType;
-import nl.co.gram.outernet.Transport;
+import nl.co.gram.camarilla.Hello;
+import nl.co.gram.camarilla.MsgType;
+import nl.co.gram.camarilla.Transport;
 
 public class Comm extends PayloadCallback {
-    private static final Logger logger = Logger.getLogger("outernet.comm"); 
+    private static final Logger logger = Logger.getLogger("camarilla.comm");
     private final String remote;
     private State state = State.STARTING;
     private final CommCenter commCenter;
