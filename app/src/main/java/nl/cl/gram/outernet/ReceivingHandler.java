@@ -110,7 +110,7 @@ public class ReceivingHandler implements TransportHandlerInterface {
             logger.severe("transport from " + from + " discarded");
             return;
         }
-        logger.info("received valid payload from " + from + ": " + payload.toString());
+        logger.info("received valid payload from " + from);
         synchronized (this) {
             payloads.add(payload);
         }

@@ -1,8 +1,10 @@
 package nl.cl.gram.outernet;
 
+import android.content.Intent;
 import android.os.Handler;
 
 import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.nearby.connection.ConnectionInfo;
 import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
@@ -33,6 +35,7 @@ import nl.co.gram.outernet.Transport;
 public class CommCenter extends ConnectionLifecycleCallback {
     private static final Logger logger = Logger.getLogger("outernet.center");
     private final long localID;
+    private final CommService commService;
     private Map<Long, Comm> commsByID = new HashMap<>();
     private Map<String, Comm> commsByRemote = new HashMap<>();
     private final ConnectionsClient connectionsClient;
@@ -41,9 +44,10 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private final static int PER_SET_RECENT = 16 * 1024;
     private final static int NUM_SETS_RECENT = 8;
 
-    CommCenter(ConnectionsClient connectionsClient) {
+    CommCenter(ConnectionsClient connectionsClient, CommService svc) {
         localID = Util.newRandomID();
         this.connectionsClient = connectionsClient;
+        this.commService = svc;
     }
     public long id() { return localID; }
 
@@ -104,6 +108,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
                 c.close();
                 break;
         }
+        commService.updateState();
     }
 
     private synchronized void disconnect(String remote) {

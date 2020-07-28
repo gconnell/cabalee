@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
+import android.app.ActivityOptions;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -18,7 +19,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
-import android.text.method.ScrollingMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,16 +26,13 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.logging.Logger;
 
 
 public class MainActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("outernet.main");
-    private TextView textView = null;
     private Handler handler = new Handler();
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
@@ -46,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
             receiverListAdapter.submitList(new ArrayList<>());
             return;
         }
-        CommCenter commCenter = commServiceBinder.commCenter();
+        CommCenter commCenter = commServiceBinder.svc().commCenter();
         receiverListAdapter.submitList(commCenter.receivers());
     }
 
@@ -54,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             commServiceBinder = (CommService.Binder) service;
-            textView.append("I am " + commServiceBinder.commCenter().id() + "\n");
+            logger.info("I am " + commServiceBinder.svc().commCenter().id());
             refresh();
         }
 
@@ -79,8 +76,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         enableLocation();
         startCommService();
-        textView = (TextView) findViewById(R.id.inputview);
-        textView.setMovementMethod(new ScrollingMovementMethod());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         recyclerView = findViewById(R.id.recyclerView);
@@ -91,20 +86,17 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(receiverListAdapter);
 
         Button init = findViewById(R.id.button1);
-        init.setText("New Network");
         init.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (commServiceBinder == null) { return; }
-                CommCenter commCenter = commServiceBinder.commCenter();
+                CommCenter commCenter = commServiceBinder.svc().commCenter();
                 ReceivingHandler rh = new ReceivingHandler(commCenter);
                 commCenter.setReceiver(rh);
-                refresh();
-                Toast.makeText(MainActivity.this, "New: " + Util.toHex(rh.id().toByteArray()), Toast.LENGTH_LONG).show();
+                toNetworkPage(rh);
             }
         });
         Button add = findViewById(R.id.button2);
-        add.setText("Connect to Network");
         add.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -120,6 +112,17 @@ public class MainActivity extends AppCompatActivity {
         });
         Intent intent = new Intent(this, CommService.class);
         bindService(intent, commServiceConnection, Context.BIND_AUTO_CREATE);
+        Button stop = findViewById(R.id.button3);
+        stop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (commServiceBinder != null) {
+                    commServiceBinder.svc().stopForeground(true);
+                    commServiceBinder.svc().stopSelf();
+                }
+                finish();
+            }
+        });
     }
 
     private static final int QR_REQUEST_CODE = 1;
@@ -141,38 +144,22 @@ public class MainActivity extends AppCompatActivity {
                 logger.severe("no comm service");
                 return;
             }
-            CommCenter commCenter = commServiceBinder.commCenter();
+            CommCenter commCenter = commServiceBinder.svc().commCenter();
             ReceivingHandler rh = new ReceivingHandler(key, commCenter);
             commCenter.setReceiver(rh);
-            Toast.makeText(this, "Added receiver: " + Util.toHex(rh.id().toByteArray()), Toast.LENGTH_LONG).show();
+            toNetworkPage(rh);
         }
     }
-
-    private Runnable doFunStuff = new Runnable() {
-        @Override
-        public void run() {
-            Date d = new Date();
-            textView.append("At " + d + "\n");
-            if (commServiceBinder != null) {
-                for (Comm c : commServiceBinder.commCenter().activeComms()) {
-                    textView.append("  connected to: " + c.remoteID() + " at " + c.remote() + "\n");
-                }
-            }
-            handler.postDelayed(this, 15_000);
-        }
-    };
 
     @Override
     protected void onPause() {
         super.onPause();
-        handler.removeCallbacks(doFunStuff);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         refresh();
-        handler.post(doFunStuff);
     }
 
     @Override
@@ -214,9 +201,7 @@ public class MainActivity extends AppCompatActivity {
             fl.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    Intent intent = new Intent(MainActivity.this, NetworkActivity.class);
-                    intent.putExtra(NetworkActivity.EXTRA_NETWORK_ID, receivingHandler.id().toByteArray());
-                    startActivity(intent);
+                    toNetworkPage(receivingHandler);
                 }
             });
         }
@@ -224,9 +209,16 @@ public class MainActivity extends AppCompatActivity {
         void bindTo(ReceivingHandler data) {
             receivingHandler = data;
             String hex = Util.toHex(data.id().toByteArray());
-            textView.setText(hex.substring(0, 6) + "...." + hex.substring(hex.length()-6));
+            textView.setText("Session: " + Util.toTitle(data.id().toByteArray()));
         }
     }
+
+    private void toNetworkPage(ReceivingHandler rh) {
+        Intent intent = new Intent(MainActivity.this, NetworkActivity.class);
+        intent.putExtra(NetworkActivity.EXTRA_NETWORK_ID, rh.id().toByteArray());
+        startActivity(intent, ActivityOptions.makeSceneTransitionAnimation(this).toBundle());
+    }
+
 
     public static final DiffUtil.ItemCallback<ReceivingHandler> DIFF_CALLBACK  = new DiffUtil.ItemCallback<ReceivingHandler>() {
         @Override

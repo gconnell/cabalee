@@ -1,6 +1,7 @@
 package nl.cl.gram.outernet;
 
 import android.os.SystemClock;
+import android.util.Base64;
 
 import com.google.protobuf.Timestamp;
 
@@ -8,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.SecureRandom;
+import java.util.UUID;
 
 public class Util {
     private static final char CHAR_0 = 0x30;
@@ -53,6 +55,11 @@ public class Util {
     private static final SecureRandom secureRandom = new SecureRandom();
     public static synchronized void randomBytes(byte[] bytes) {
         secureRandom.nextBytes(bytes);
+    }
+
+    public static String toTitle(byte[] b) {
+        String s = Base64.encodeToString(b, Base64.URL_SAFE|Base64.NO_PADDING|Base64.NO_WRAP);
+        return s.substring(1, 26);  // random subset of the base64'd sha256
     }
 
     public static class Uint64 {

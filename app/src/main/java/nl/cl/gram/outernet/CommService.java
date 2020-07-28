@@ -29,11 +29,11 @@ public class CommService extends Service {
     private static final int NOTIFICATION_ID = 1;
     private static final String STOP_SERVICE = "SERVICE_KILL_THYSELF";
     private static final String CHANNEL_ID = "nl.co.gram.outernet.CommServiceChannel";
-    private static final String DESCRIPTION = "Outernet";
     private ConnectionsClient connectionsClient = null;
     private CommCenter commCenter = null;
     private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
     private static final String SERVICE_ID = "nl.co.gram.outernet";
+    private NotificationManager notificationManager = null;
 
     public CommService() {
     }
@@ -46,11 +46,17 @@ public class CommService extends Service {
         return iBinder;
     }
 
+    public void updateState() {
+        notificationManager.notify(NOTIFICATION_ID, notification());
+    }
+
     class Binder extends android.os.Binder {
-        CommCenter commCenter() {
-            return CommService.this.commCenter;
+        CommService svc() {
+            return CommService.this;
         }
     }
+
+    public CommCenter commCenter() { return commCenter; }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -65,37 +71,45 @@ public class CommService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Notifications", NotificationManager.IMPORTANCE_LOW);
             channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channel);
         }
-        Intent stopSelf = new Intent(this, getClass());
-        stopSelf.setAction(STOP_SERVICE);
-        PendingIntent intent = PendingIntent.getService(this, 0, stopSelf, PendingIntent.FLAG_CANCEL_CURRENT);
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Outernet")
-                .setContentText(DESCRIPTION)
-                .setOngoing(true)
-                .setOnlyAlertOnce(true)
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentIntent(intent)
-                .build();
-        startForeground(NOTIFICATION_ID, notification);
+
+        startForeground(NOTIFICATION_ID, notification());
 
         connectionsClient = Nearby.getConnectionsClient(this);
-        commCenter = new CommCenter(connectionsClient);
+        commCenter = new CommCenter(connectionsClient, this);
         startAdvertising();
         startDiscovery();
+    }
+
+    private Notification notification() {
+        Intent main = new Intent(this, MainActivity.class);
+        main.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent intent = PendingIntent.getActivity(this, 0, main, PendingIntent.FLAG_UPDATE_CURRENT);
+        String description = "Connections: " + (commCenter == null ? 0 : commCenter.activeComms().size());
+        return new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Outernet")
+                .setContentText(description)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setSmallIcon(R.drawable.ic_commservice)
+                .setContentIntent(intent)
+                .build();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        logger.severe("Stopping CommService");
         connectionsClient.stopAdvertising();
         connectionsClient.stopDiscovery();
         connectionsClient.stopAllEndpoints();
+        notificationManager.cancel(NOTIFICATION_ID);
     }
 
     private void startDiscovery() {

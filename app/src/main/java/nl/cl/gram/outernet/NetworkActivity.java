@@ -2,26 +2,46 @@ package nl.cl.gram.outernet;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.view.ContextMenu;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
+import android.view.animation.AnimationSet;
+import android.view.animation.BounceInterpolator;
+import android.view.animation.DecelerateInterpolator;
+import android.view.animation.Interpolator;
+import android.view.animation.RotateAnimation;
+import android.view.animation.ScaleAnimation;
+import android.view.animation.TranslateAnimation;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewpager.widget.ViewPager;
 
 import com.google.protobuf.ByteString;
 
@@ -48,10 +68,10 @@ public class NetworkActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             commServiceBinder = (CommService.Binder) service;
-            for (ReceivingHandler rh : commServiceBinder.commCenter().receivers()) {
+            for (ReceivingHandler rh : commServiceBinder.svc().commCenter().receivers()) {
                 if (networkId.equals(rh.id())) {
                     receivingHandler = rh;
-                    from = String.format("%06x", commServiceBinder.commCenter().id() & 0xFFFFFF);
+                    from = String.format("%06x", commServiceBinder.svc().commCenter().id() & 0xFFFFFF);
                 }
             }
         }
@@ -97,46 +117,103 @@ public class NetworkActivity extends AppCompatActivity {
         recyclerView.setAdapter(receiverListAdapter);
 
         networkId = ByteString.copyFrom(getIntent().getByteArrayExtra(EXTRA_NETWORK_ID));
+        setTitle(Util.toTitle(networkId.toByteArray()));
         bindService(new Intent(this, CommService.class), commServiceConnection, Context.BIND_AUTO_CREATE);
 
-        Button b = findViewById(R.id.button1);
-        b.setOnClickListener(new View.OnClickListener() {
-             @Override
-             public void onClick(View v) {
-                 if (receivingHandler == null) { return; }
-                 Intent i = new Intent(NetworkActivity.this, QrShowerActivity.class);
-                 i.putExtra(QrShowerActivity.EXTRA_QR_TO_SHOW, QrShowerActivity.url(receivingHandler.sooperSecret()));
-                 startActivity(i);
-             }
-        });
-        Button b2 = findViewById(R.id.button2);
-        b2.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (receivingHandler != null) {
-                    receivingHandler.clearPayloads();
-                }
-            }
-        });
-        Button b3 = findViewById(R.id.button3);
+        ImageButton b3 = (ImageButton) findViewById(R.id.button3);
         b3.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (receivingHandler == null) return;
-                String out = editText.getText().toString();
-                if (out.isEmpty()) return;
-                editText.getText().clear();
-                Payload p = Payload.newBuilder()
-                        .setCleartextBroadcast(MessageContents.newBuilder()
-                                .setFrom(from)
-                                .setText(out)
-                                .setTimestamp(Util.now())
-                                .build())
-                        .build();
-                receivingHandler.sendPayload(p);
-                refreshList();
+                sendText();
             }
         });
+        editText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                switch (actionId) {
+                    case EditorInfo.IME_ACTION_DONE:
+                        InputMethodManager imm = (InputMethodManager)v.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                        imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+                        sendText();
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        });
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                View v = getWindow().getDecorView();
+                AnimationSet s = new AnimationSet(true);
+                int min = v.getWidth() < v.getHeight() ? v.getWidth() : v.getHeight();
+                s.addAnimation(new TranslateAnimation(
+                        0, 0,
+                        -min, 0));
+                s.addAnimation(new AlphaAnimation(0, 1));
+                s.setDuration(750);
+                s.setInterpolator(new BounceInterpolator());
+                b3.startAnimation(s);
+            }
+        });
+    }
+
+    private void sendText() {
+        if (receivingHandler == null) return;
+        String out = editText.getText().toString();
+        if (out.isEmpty()) return;
+        editText.getText().clear();
+        Payload p = Payload.newBuilder()
+                .setCleartextBroadcast(MessageContents.newBuilder()
+                        .setFrom(from)
+                        .setText(out)
+                        .setTimestamp(Util.now())
+                        .build())
+                .build();
+        receivingHandler.sendPayload(p);
+        refreshList();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.network_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.menuadd:
+                if (receivingHandler == null) { return true; }
+                showQr();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void showQr() {
+        new AlertDialog.Builder(this)
+                .setMessage("You are about to display a QR code which can be used to access this session.  Whoever sees this code will the ability to read all communications associated with this session.  Are you sure?")
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                })
+                .setPositiveButton("Show QR", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        Intent i = new Intent(NetworkActivity.this, QrShowerActivity.class);
+                        i.putExtra(QrShowerActivity.EXTRA_QR_TO_SHOW, QrShowerActivity.url(receivingHandler.sooperSecret()));
+                        i.putExtra(QrShowerActivity.EXTRA_QR_TITLE, Util.toTitle(networkId.toByteArray()));
+                        startActivity(i);
+                    }
+                })
+                .create()
+                .show();
     }
 
     @Override
@@ -165,12 +242,6 @@ public class NetworkActivity extends AppCompatActivity {
             super(fl);
             frameLayout = fl;
             textView = fl.findViewById(R.id.textView);
-            fl.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Toast.makeText(NetworkActivity.this, textView.getText(), Toast.LENGTH_LONG).show();
-                }
-            });
         }
 
         void bindTo(Payload data) {
