@@ -102,7 +102,7 @@ public class CommService extends Service {
                 .setContentText(description)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
-                .setSmallIcon(R.drawable.ic_commservice)
+                .setSmallIcon(R.drawable.ic_stat_name)
                 .setContentIntent(intent)
                 .build();
     }
@@ -127,7 +127,7 @@ public class CommService extends Service {
         notificationManager.notify(id, new NotificationCompat.Builder(this, MESSAGE_CHANNEL_ID)
                 .setContentTitle(Util.toTitle(rh.id().toByteArray()))
                 .setContentText("New message(s) received")
-                .setSmallIcon(R.drawable.ic_commservice)
+                .setSmallIcon(R.drawable.ic_stat_name)
                 .setContentIntent(intent)
                 .setOnlyAlertOnce(true)
                 .setAutoCancel(true)
