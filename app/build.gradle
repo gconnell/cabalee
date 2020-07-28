@@ -5,7 +5,7 @@ android {
     compileSdkVersion 29
 
     defaultConfig {
-        applicationId "nl.cl.gram.outernet"
+        applicationId "nl.cl.gram.camarilla"
         minSdkVersion 21
         targetSdkVersion 29
         versionCode 1
