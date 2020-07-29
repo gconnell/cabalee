@@ -3,4 +3,6 @@
     <color name="colorPrimary">#77aa77</color>
     <color name="colorPrimaryDark">#008000</color>
     <color name="colorAccent">#66cc66</color>
+    <color name="chatBackground">#eee</color>
+    <color name="cabalBackground">#fff</color>
 </resources>

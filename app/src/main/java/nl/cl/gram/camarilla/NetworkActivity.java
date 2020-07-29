@@ -1,14 +1,19 @@
 package nl.cl.gram.camarilla;
 
+import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -26,6 +31,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -38,6 +44,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.protobuf.ByteString;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
@@ -64,7 +71,10 @@ public class NetworkActivity extends AppCompatActivity {
             for (ReceivingHandler rh : commServiceBinder.svc().commCenter().receivers()) {
                 if (networkId.equals(rh.id())) {
                     receivingHandler = rh;
-                    from = String.format("%06x", commServiceBinder.svc().commCenter().id() & 0xFFFFFF);
+                    setTitle(rh.name());
+                    from = String.format("%d", commServiceBinder.svc().commCenter().id());
+                    ImageView avatar = findViewById(R.id.avatar);
+                    avatar.setImageBitmap(Util.identicon(ByteString.copyFrom(from, StandardCharsets.UTF_8)));
                 }
             }
         }
@@ -113,7 +123,7 @@ public class NetworkActivity extends AppCompatActivity {
         setTitle(Util.toTitle(networkId.toByteArray()));
         bindService(new Intent(this, CommService.class), commServiceConnection, Context.BIND_AUTO_CREATE);
 
-        ImageButton b3 = (ImageButton) findViewById(R.id.button3);
+        ImageButton b3 = (ImageButton) findViewById(R.id.sendchat);
         b3.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -134,25 +144,19 @@ public class NetworkActivity extends AppCompatActivity {
                 }
             }
         });
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                View v = getWindow().getDecorView();
-                AnimationSet s = new AnimationSet(true);
-                int min = v.getWidth() < v.getHeight() ? v.getWidth() : v.getHeight();
-                s.addAnimation(new TranslateAnimation(
-                        0, 0,
-                        -min, 0));
-                s.addAnimation(new AlphaAnimation(0, 1));
-                s.setDuration(750);
-                s.setInterpolator(new BounceInterpolator());
-                b3.startAnimation(s);
-            }
-        });
+
+        b3.setBackground(new BitmapDrawable(getResources(), Util.identicon(networkId)));
     }
 
     private void sendText() {
         if (receivingHandler == null) return;
+        if (commServiceBinder == null) return;
+        if (commServiceBinder.svc().commCenter().activeComms().size() == 0) {
+            new AlertDialog.Builder(this).setTitle("No active connections")
+                    .setMessage(R.string.no_connections)
+                    .create().show();
+            return;
+        }
         String out = editText.getText().toString();
         if (out.isEmpty()) return;
         editText.getText().clear();
@@ -179,8 +183,10 @@ public class NetworkActivity extends AppCompatActivity {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.menuadd:
-                if (receivingHandler == null) { return true; }
-                showQr();
+                if (receivingHandler != null) showQr();
+                return true;
+            case R.id.editname:
+                if (receivingHandler != null) editName();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -189,24 +195,49 @@ public class NetworkActivity extends AppCompatActivity {
 
     private void showQr() {
         new AlertDialog.Builder(this)
-                .setMessage("You are about to display a QR code which can be used to access this cabal.  Whoever sees this code will the ability to read all future communications, as well as potentially decrypt past captured communications.  Are you sure?")
+                .setMessage(R.string.add_member)
                 .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-
                     }
                 })
-                .setPositiveButton("Show Code", new DialogInterface.OnClickListener() {
+                .setPositiveButton("Show Secret", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         Intent i = new Intent(NetworkActivity.this, QrShowerActivity.class);
                         i.putExtra(QrShowerActivity.EXTRA_QR_TO_SHOW, QrShowerActivity.url(receivingHandler.sooperSecret()));
-                        i.putExtra(QrShowerActivity.EXTRA_QR_TITLE, Util.toTitle(networkId.toByteArray()));
+                        i.putExtra(QrShowerActivity.EXTRA_QR_TITLE, "Cabal Secret");
                         startActivity(i);
                     }
                 })
                 .create()
                 .show();
+    }
+
+    private void editName() {
+        final EditText input = new EditText(this);
+        AlertDialog ad = new AlertDialog.Builder(this)
+                .setTitle("Rename Cabal")
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                    }
+                })
+                .setPositiveButton("Rename", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String name = input.getText().toString();
+                        logger.info("New name: " + name);
+                        receivingHandler.setName(name);
+                        setTitle(name);
+                    }
+                }).create();
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT);
+        input.setLayoutParams(lp);
+        ad.setView(input);
+        ad.show();
     }
 
     @Override
@@ -244,18 +275,19 @@ public class NetworkActivity extends AppCompatActivity {
             textView.setText("?");
             switch (data.getKindCase()) {
                 case CLEARTEXT_BROADCAST: {
-                    BitmapDrawable draw = new BitmapDrawable(Util.identicon(payload.getCleartextBroadcast().getTextBytes()));
-                    draw.setAntiAlias(false);
-                    identicon.setImageDrawable(draw);
+                    Bitmap bmp = Util.identicon(ByteString.copyFrom(payload.getCleartextBroadcast().getFrom(), StandardCharsets.UTF_8));
+                    identicon.setImageBitmap(bmp);
                     MessageContents contents = data.getCleartextBroadcast();
-                    Date d = new Date(contents.getTimestamp().getSeconds() * 1000L + (long) (contents.getTimestamp().getNanos() / 1000000));
-                    textView.setText("From " + contents.getFrom() + " at " + d + "\n");
-                    textView.append(contents.getText());
+                    textView.setText(contents.getText());
                     if (contents.hasLocation()) {
                         textView.append("\n@{" + contents.getLocation().getLatitude() + "," + contents.getLocation().getLongitude() + "}");
                     }
                 }
             }
+            Date d = new Date();
+            Spannable s = new SpannableString("\n@ "  + d);
+            s.setSpan(new ForegroundColorSpan(0x55000000), 0, s.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            textView.append(s);
         }
     }
 

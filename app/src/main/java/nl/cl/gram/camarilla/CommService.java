@@ -131,6 +131,7 @@ public class CommService extends Service {
                 .setContentIntent(intent)
                 .setOnlyAlertOnce(true)
                 .setAutoCancel(true)
+                .setLargeIcon(Util.identicon(rh.id()))
                 .build());
     }
 

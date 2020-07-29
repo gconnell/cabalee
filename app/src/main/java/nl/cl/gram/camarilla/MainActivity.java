@@ -25,9 +25,11 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.logging.Logger;
 
 
@@ -37,14 +39,10 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
     private CommService.Binder commServiceBinder = null;
+    private ArrayList<ReceivingHandler> receivingHandlers = new ArrayList<>();
 
     private void refresh() {
-        if (commServiceBinder == null) {
-            receiverListAdapter.submitList(new ArrayList<>());
-            return;
-        }
-        CommCenter commCenter = commServiceBinder.svc().commCenter();
-        receiverListAdapter.submitList(commCenter.receivers());
+        receiverListAdapter.submitList(new ArrayList<>(receivingHandlers));
     }
 
     private ServiceConnection commServiceConnection = new ServiceConnection() {
@@ -52,6 +50,8 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service) {
             commServiceBinder = (CommService.Binder) service;
             logger.info("I am " + commServiceBinder.svc().commCenter().id());
+            receivingHandlers.clear();
+            receivingHandlers.addAll(commServiceBinder.svc().commCenter().receivers());
             refresh();
         }
 
@@ -82,6 +82,8 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setHasFixedSize(true);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        layoutManager.setStackFromEnd(true);
+        layoutManager.setReverseLayout(true);
         recyclerView.setLayoutManager(layoutManager);
         receiverListAdapter = new ReceiverListAdapter();
         recyclerView.setAdapter(receiverListAdapter);
@@ -94,7 +96,8 @@ public class MainActivity extends AppCompatActivity {
                 CommCenter commCenter = commServiceBinder.svc().commCenter();
                 ReceivingHandler rh = new ReceivingHandler(commCenter);
                 commCenter.setReceiver(rh);
-                toNetworkPage(rh);
+                addHandler(rh);
+                // toNetworkPage(rh, null);
             }
         });
         Button add = findViewById(R.id.button2);
@@ -113,7 +116,7 @@ public class MainActivity extends AppCompatActivity {
         });
         Intent intent = new Intent(this, CommService.class);
         bindService(intent, commServiceConnection, Context.BIND_AUTO_CREATE);
-        Button stop = findViewById(R.id.button3);
+        Button stop = findViewById(R.id.sendchat);
         stop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -124,6 +127,12 @@ public class MainActivity extends AppCompatActivity {
                 finish();
             }
         });
+    }
+
+    private void addHandler(ReceivingHandler rh) {
+        receivingHandlers.add(rh);
+        refresh();
+        recyclerView.smoothScrollToPosition(receivingHandlers.size()-1);
     }
 
     private static final int QR_REQUEST_CODE = 1;
@@ -148,7 +157,7 @@ public class MainActivity extends AppCompatActivity {
             CommCenter commCenter = commServiceBinder.svc().commCenter();
             ReceivingHandler rh = new ReceivingHandler(key, commCenter);
             commCenter.setReceiver(rh);
-            toNetworkPage(rh);
+            addHandler(rh);
         }
     }
 
@@ -161,6 +170,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         refresh();
+        receiverListAdapter.notifyDataSetChanged();
     }
 
     @Override
@@ -194,33 +204,41 @@ public class MainActivity extends AppCompatActivity {
         // each data item is just a string in this case
         public FrameLayout frameLayout;
         public TextView textView;
+        public ImageView myImage;
         ReceivingHandler receivingHandler = null;
         public MyViewHolder(FrameLayout fl) {
             super(fl);
             frameLayout = fl;
             textView = fl.findViewById(R.id.textView);
+            myImage = fl.findViewById(R.id.identicon);
             fl.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    toNetworkPage(receivingHandler);
+                    toNetworkPage(receivingHandler, myImage);
                 }
             });
         }
 
         void bindTo(ReceivingHandler data) {
             receivingHandler = data;
-            String hex = Util.toHex(data.id().toByteArray());
-            textView.setText("Cabal: " + Util.toTitle(data.id().toByteArray()));
+            textView.setText("Cabal: " + data.name());
+            myImage.setImageBitmap(Util.identicon(data.id()));
         }
     }
 
-    private void toNetworkPage(ReceivingHandler rh) {
+    private void toNetworkPage(ReceivingHandler rh, ImageView myImage) {
         handler.post(new Runnable() {
             @Override
             public void run() {
                 Intent intent = new Intent(MainActivity.this, NetworkActivity.class);
                 intent.putExtra(NetworkActivity.EXTRA_NETWORK_ID, rh.id().toByteArray());
-                startActivity(intent, ActivityOptions.makeSceneTransitionAnimation(MainActivity.this).toBundle());
+                ActivityOptions options;
+                if (myImage != null) {
+                    options = ActivityOptions.makeSceneTransitionAnimation(MainActivity.this, myImage, "cabal");
+                } else {
+                    options = ActivityOptions.makeSceneTransitionAnimation(MainActivity.this);
+                }
+                startActivity(intent, options.toBundle());
             }
         });
     }
@@ -233,7 +251,9 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public boolean areContentsTheSame(@NonNull ReceivingHandler oldItem, @NonNull ReceivingHandler newItem) {
-            return oldItem.id().equals(newItem.id());
+            boolean out = oldItem.id().equals(newItem.id())
+                    && oldItem.name().equals(newItem.name());
+            return out;
         }
     };
 

@@ -20,6 +20,7 @@ public class ReceivingHandler implements TransportHandlerInterface {
     private final TweetNaclFast.SecretBox box;
     private final ByteString id;
     private final CommCenter commCenter;
+    private String name;
 
     @Override
     public String type() { return "receive"; }
@@ -36,7 +37,13 @@ public class ReceivingHandler implements TransportHandlerInterface {
             throw new RuntimeException("no sha256", e);
         }
         this.id = ByteString.copyFrom(digest.digest(key));
+        this.name = Util.toTitle(this.id.toByteArray());
     }
+
+    public synchronized void setName(String name) {
+        this.name = name;
+    }
+    public synchronized String name() { return name; }
 
     private static byte[] newKey() {
         byte[] key = new byte[TweetNaclFast.SecretBox.keyLength];

@@ -9,6 +9,8 @@ import com.google.protobuf.Timestamp;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
 public class Util {
@@ -123,16 +125,31 @@ public class Util {
         }
     }
 
+    public static MessageDigest sha256() {
+        MessageDigest d;
+        try {
+            d = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("no sha256", e);
+        }
+        return d;
+    }
+
     public static Bitmap identicon(ByteString id) {
         Bitmap bitmap=null;
+        byte[] color = sha256().digest(id.toByteArray());
+        int frd = color[0] & 0xff;
+        int fgr = color[1] & 0xff;
+        int fbl = color[2] & 0xff;
+        int brd = color[3] & 0xff;
+        int bgr = color[4] & 0xff;
+        int bbl = color[5] & 0xff;
         try {
             int w = 4;
             int h = 7;
             boolean[] pixelFlags = new boolean[w * h];
             int count = 0;
-            int[] rgb = new int[3];
             for (byte b : id.toByteArray()) {
-                rgb[b % 3] ^= b;
                 for (int i = 0; i < 8; i++) {
                     boolean bit = (b>>i&0x1) != 0;
                     int offset = count % pixelFlags.length;
@@ -140,15 +157,15 @@ public class Util {
                     count++;
                 }
             }
-            int foreground = 0xff808080 | ((rgb[0] << 16) | (rgb[1] << 8) | rgb[2]);
-            int background = 0x00000000;
+            int foreground = 0xff808080 | (frd << 16) | (fgr << 8) | fbl;
+            int background = (0xff000000 | (brd << 16) | (bgr << 8) | bbl) & 0xff7f7f7f;
             int[] pixels = new int[h*h];
             for (int y = 0; y < h; y++) {
                 for (int x = 0; x < w; x++) {
-                    int color = pixelFlags[w*y+x] ? foreground : background;
+                    int pixelColor = pixelFlags[w*y+x] ? foreground : background;
                     int yoffset = h*y;
-                    pixels[yoffset+x] = color;
-                    pixels[yoffset+h-x-1] = color;
+                    pixels[yoffset+x] = pixelColor;
+                    pixels[yoffset+h-x-1] = pixelColor;
                 }
             }
             bitmap = Bitmap.createBitmap(h, h, Bitmap.Config.ARGB_8888);
@@ -157,6 +174,6 @@ public class Util {
             iae.printStackTrace();
             return null;
         }
-        return bitmap;
+        return Bitmap.createScaledBitmap(bitmap, 49, 49, false);
     }
 }
