@@ -25,7 +25,6 @@ import com.google.protobuf.ByteString;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 public class CommService extends Service {
@@ -33,13 +32,12 @@ public class CommService extends Service {
     private static final int NOTIFICATION_ID = 1;
     private static final String STOP_SERVICE = "SERVICE_KILL_THYSELF";
     private static final String CHANNEL_ID = "comm";
-    private static final String MESSAGE_CHANNEL_ID = "msgs";
+    public static final String MESSAGE_CHANNEL_ID = "msgs";
     private ConnectionsClient connectionsClient = null;
     private CommCenter commCenter = null;
     private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
     private static final String SERVICE_ID = "nl.co.gram.camarilla";
     private NotificationManager notificationManager = null;
-    private static final AtomicInteger notificationIdGen = new AtomicInteger(2);
 
     public CommService() {
     }
@@ -105,34 +103,6 @@ public class CommService extends Service {
                 .setSmallIcon(R.drawable.ic_stat_name)
                 .setContentIntent(intent)
                 .build();
-    }
-
-    private final Map<ByteString, Integer> notificationsForReceivers = new HashMap<>();
-    protected synchronized void notificationFor(ReceivingHandler rh) {
-        Integer id;
-        if (notificationsForReceivers.containsKey(rh.id())) {
-            id = notificationsForReceivers.get(rh.id());
-            if (id == null) {
-                // Explicitly added null means "don't notify for this"
-                return;
-            }
-        } else {
-            id = notificationIdGen.addAndGet(1);
-            notificationsForReceivers.put(rh.id(), id);
-        }
-        Intent act = new Intent(this, NetworkActivity.class);
-        act.putExtra(NetworkActivity.EXTRA_NETWORK_ID, rh.id().toByteArray());
-        act.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent intent = PendingIntent.getActivity(this, 0, act, PendingIntent.FLAG_UPDATE_CURRENT);
-        notificationManager.notify(id, new NotificationCompat.Builder(this, MESSAGE_CHANNEL_ID)
-                .setContentTitle(Util.toTitle(rh.id().toByteArray()))
-                .setContentText("New message(s) received")
-                .setSmallIcon(R.drawable.ic_stat_name)
-                .setContentIntent(intent)
-                .setOnlyAlertOnce(true)
-                .setAutoCancel(true)
-                .setLargeIcon(Util.identicon(rh.id()))
-                .build());
     }
 
     @Override

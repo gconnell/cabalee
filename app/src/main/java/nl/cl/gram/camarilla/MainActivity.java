@@ -22,14 +22,12 @@ import android.os.IBinder;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.logging.Logger;
 
 
@@ -77,7 +75,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         enableLocation();
         startCommService();
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setHasFixedSize(true);
@@ -94,10 +91,9 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if (commServiceBinder == null) { return; }
                 CommCenter commCenter = commServiceBinder.svc().commCenter();
-                ReceivingHandler rh = new ReceivingHandler(commCenter);
+                ReceivingHandler rh = new ReceivingHandler(commCenter, commServiceBinder.svc());
                 commCenter.setReceiver(rh);
                 addHandler(rh);
-                // toNetworkPage(rh, null);
             }
         });
         Button add = findViewById(R.id.button2);
@@ -155,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             CommCenter commCenter = commServiceBinder.svc().commCenter();
-            ReceivingHandler rh = new ReceivingHandler(key, commCenter);
+            ReceivingHandler rh = new ReceivingHandler(key, commCenter, commServiceBinder.svc());
             commCenter.setReceiver(rh);
             addHandler(rh);
         }

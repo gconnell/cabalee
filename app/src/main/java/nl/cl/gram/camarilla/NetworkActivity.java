@@ -1,6 +1,5 @@
 package nl.cl.gram.camarilla;
 
-import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -21,10 +20,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.AlphaAnimation;
-import android.view.animation.AnimationSet;
-import android.view.animation.BounceInterpolator;
-import android.view.animation.TranslateAnimation;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -62,6 +57,7 @@ public class NetworkActivity extends AppCompatActivity {
     private Handler handler = new Handler();
     private LinearLayoutManager linearLayoutManager = null;
     private String from = "???";
+    private boolean visible = false;
 
     CommService.Binder commServiceBinder = null;
     private ServiceConnection commServiceConnection = new ServiceConnection() {
@@ -75,8 +71,11 @@ public class NetworkActivity extends AppCompatActivity {
                     from = String.format("%d", commServiceBinder.svc().commCenter().id());
                     ImageView avatar = findViewById(R.id.avatar);
                     avatar.setImageBitmap(Util.identicon(ByteString.copyFrom(from, StandardCharsets.UTF_8)));
+                    setShown();
+                    return;
                 }
             }
+            throw new RuntimeException("receiverhandler id not found");
         }
 
         @Override
@@ -85,25 +84,35 @@ public class NetworkActivity extends AppCompatActivity {
         }
     };
 
-    public static final String EXTRA_NETWORK_ID = "nl.co.gram.camarilla.ExtraNetworkId";
-
-    private Runnable updatePayloads = new Runnable() {
+    private final PayloadReceiver refresher = new PayloadReceiver() {
         @Override
-        public void run() {
-            refreshList();
-            handler.postDelayed(this, 1_000);
+        public void receivePayload(Payload p) {
+            int size = receiverListAdapter.getItemCount();
+            boolean atBottom = size == 0 || linearLayoutManager.findLastCompletelyVisibleItemPosition() == size-1;
+            if (receivingHandler != null) {
+                List<Payload> payloads = receivingHandler.channel().payloads();
+                receiverListAdapter.submitList(payloads);
+                if (atBottom && payloads.size() > 0)
+                    recyclerView.smoothScrollToPosition(payloads.size()-1);
+            }
         }
     };
 
-    private void refreshList() {
-        boolean atBottom = linearLayoutManager.findLastCompletelyVisibleItemPosition() == receiverListAdapter.getItemCount()-1;
-        if (receivingHandler != null) {
-            List<Payload> payloads = receivingHandler.payloads();
-            receiverListAdapter.submitList(payloads);
-            if (atBottom && payloads.size() > 0)
-                recyclerView.smoothScrollToPosition(payloads.size()-1);
+    private void setShown() {
+        if (receivingHandler == null || !visible) {
+            return;
+        }
+        receivingHandler.addPayloadReceiver(refresher);
+        receivingHandler.channel().cabalShown();
+    }
+    private void stopShown() {
+        if (receivingHandler != null && visible) {
+            receivingHandler.removePayloadReciever(refresher);
+            receivingHandler.channel().cabalHidden();
         }
     }
+
+    public static final String EXTRA_NETWORK_ID = "nl.co.gram.camarilla.ExtraNetworkId";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -151,7 +160,8 @@ public class NetworkActivity extends AppCompatActivity {
     private void sendText() {
         if (receivingHandler == null) return;
         if (commServiceBinder == null) return;
-        if (commServiceBinder.svc().commCenter().activeComms().size() == 0) {
+        // TODO: not this
+        if (false && commServiceBinder.svc().commCenter().activeComms().size() == 0) {
             new AlertDialog.Builder(this).setTitle("No active connections")
                     .setMessage(R.string.no_connections)
                     .create().show();
@@ -168,7 +178,6 @@ public class NetworkActivity extends AppCompatActivity {
                         .build())
                 .build();
         receivingHandler.sendPayload(p);
-        refreshList();
     }
 
     @Override
@@ -243,12 +252,14 @@ public class NetworkActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        handler.post(updatePayloads);
+        visible = true;
+        setShown();
     }
     @Override
     protected void onPause() {
         super.onPause();
-        handler.removeCallbacks(updatePayloads);
+        visible = false;
+        stopShown();
     }
 
     @Override

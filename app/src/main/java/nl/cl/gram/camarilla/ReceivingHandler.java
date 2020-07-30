@@ -1,13 +1,15 @@
 package nl.cl.gram.camarilla;
 
+import android.content.Context;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.iwebpp.crypto.TweetNaclFast;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.logging.Logger;
 
 import nl.co.gram.camarilla.Payload;
@@ -15,17 +17,18 @@ import nl.co.gram.camarilla.Transport;
 
 public class ReceivingHandler implements TransportHandlerInterface {
     private static final Logger logger = Logger.getLogger("camarilla.receiver");
-    private final List<Payload> payloads = new ArrayList<>();
     private final byte[] key;
     private final TweetNaclFast.SecretBox box;
     private final ByteString id;
     private final CommCenter commCenter;
     private String name;
+    private Collection<PayloadReceiver> receiverSet = new LinkedList<>();
+    private final Channel channel;
 
     @Override
     public String type() { return "receive"; }
 
-    public ReceivingHandler(byte[] key, CommCenter commCenter) {
+    public ReceivingHandler(byte[] key, CommCenter commCenter, Context context) {
         Util.checkArgument(key.length == TweetNaclFast.Box.secretKeyLength, "key wrong length");
         this.commCenter = commCenter;
         this.key = key;
@@ -38,7 +41,11 @@ public class ReceivingHandler implements TransportHandlerInterface {
         }
         this.id = ByteString.copyFrom(digest.digest(key));
         this.name = Util.toTitle(this.id.toByteArray());
+        this.channel = new Channel(context, this);
+        this.receiverSet.add(this.channel);
     }
+
+    public Channel channel() { return this.channel; }
 
     public synchronized void setName(String name) {
         this.name = name;
@@ -83,29 +90,32 @@ public class ReceivingHandler implements TransportHandlerInterface {
         return key;
     }
 
-    public ReceivingHandler(CommCenter commCenter) {
-        this(newKey(), commCenter);
+    public ReceivingHandler(CommCenter commCenter, Context context) {
+        this(newKey(), commCenter, context);
     }
 
     public ByteString id() { return id; }
 
     public void sendPayload(Payload payload) {
         ByteString boxed = boxIt(payload, box);
-        synchronized (this) {
-            payloads.add(payload);
-        }
         commCenter.broadcastTransport(Transport.newBuilder()
                 .setPayload(boxed)
                 .setNetworkId(id())
                 .build());
+        payloadToReceivers(payload);
     }
 
-    public synchronized List<Payload> payloads() {
-        return new ArrayList<>(payloads);
+    public synchronized void payloadToReceivers(Payload p) {
+        for (PayloadReceiver pr : receiverSet) {
+            pr.receivePayload(p);
+        }
     }
 
-    public synchronized void clearPayloads() {
-        payloads.clear();
+    public synchronized void addPayloadReceiver(PayloadReceiver pr) {
+        receiverSet.add(pr);
+    }
+    public synchronized void removePayloadReciever(PayloadReceiver pr) {
+        receiverSet.remove(pr);
     }
 
     @Override
@@ -118,9 +128,6 @@ public class ReceivingHandler implements TransportHandlerInterface {
             return;
         }
         logger.info("received valid payload from " + from);
-        synchronized (this) {
-            payloads.add(payload);
-        }
-        commCenter.messageReceived(this);
+        payloadToReceivers(payload);
     }
 }
