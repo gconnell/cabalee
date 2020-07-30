@@ -14,6 +14,8 @@
         android:layout_height="0dp"
         android:background="@color/cabalBackground"
         android:scrollbars="vertical"
+        android:requiresFadingEdge="vertical"
+        android:fadingEdgeLength="30dp"
         app:layout_constraintBottom_toTopOf="@id/inputview"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"

@@ -14,7 +14,6 @@ import me.dm7.barcodescanner.zxing.ZXingScannerView;
 public class QrReaderActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
     private static final Logger logger = Logger.getLogger("camarilla.qrr");
     private ZXingScannerView mScannerView;
-    public static final String EXTRA_QR_CODE = "nl.co.gram.camarilla.ExtraQrCode";
 
     @Override
     public void onCreate(Bundle state) {
@@ -51,7 +50,7 @@ public class QrReaderActivity extends AppCompatActivity implements ZXingScannerV
         //If you would like to resume scanning, call this method below:
         //mScannerView.resumeCameraPreview(this);
         Intent intent = new Intent();
-        intent.putExtra(EXTRA_QR_CODE, rawResult.getText());
+        intent.putExtra(Intents.EXTRA_QR_CODE, rawResult.getText());
         setResult(RESULT_OK, intent);
         finish();
     }

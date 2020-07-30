@@ -5,14 +5,17 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Build;
 import android.os.IBinder;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.AdvertisingOptions;
@@ -35,6 +38,9 @@ public class CommService extends Service {
     private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
     private static final String SERVICE_ID = "nl.co.gram.camarilla";
     private NotificationManager notificationManager = null;
+    private LocalBroadcastManager localBroadcastManager = null;
+    private IntentFilter intentFilter = null;
+    private BroadcastReceiver broadcastReceiver = null;
 
     public CommService() {
     }
@@ -45,10 +51,6 @@ public class CommService extends Service {
     @Override
     public android.os.IBinder onBind(Intent intent) {
         return iBinder;
-    }
-
-    public void updateState() {
-        notificationManager.notify(NOTIFICATION_ID, notification());
     }
 
     class Binder extends android.os.Binder {
@@ -79,7 +81,21 @@ public class CommService extends Service {
             notificationManager.createNotificationChannel(new NotificationChannel(MESSAGE_CHANNEL_ID, "Cabals", NotificationManager.IMPORTANCE_DEFAULT));
         }
 
-        startForeground(NOTIFICATION_ID, notification());
+        startForeground(NOTIFICATION_ID, notification(0));
+        localBroadcastManager = LocalBroadcastManager.getInstance(this);
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(Intents.ACTIVE_CONNECTIONS_CHANGED);
+        broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (Intents.ACTIVE_CONNECTIONS_CHANGED.equals(action)) {
+                    int num = intent.getIntExtra(Intents.EXTRA_ACTIVE_CONNECTIONS, 0);
+                    notificationManager.notify(NOTIFICATION_ID, notification(num));
+                }
+            }
+        };
+        localBroadcastManager.registerReceiver(broadcastReceiver, intentFilter);
 
         connectionsClient = Nearby.getConnectionsClient(this);
         commCenter = new CommCenter(connectionsClient, this);
@@ -87,17 +103,18 @@ public class CommService extends Service {
         startDiscovery();
     }
 
-    private Notification notification() {
+    private Notification notification(int activeComms) {
+        logger.severe("comms notification: " + activeComms);
+        String description = activeComms == 0 ? "Waiting from connections" : "Active connections: " + activeComms;
         Intent main = new Intent(this, MainActivity.class);
         main.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent intent = PendingIntent.getActivity(this, 0, main, PendingIntent.FLAG_UPDATE_CURRENT);
-        String description = "Connections: " + (commCenter == null ? 0 : commCenter.activeComms().size());
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Camarilla")
                 .setContentText(description)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
-                .setSmallIcon(R.drawable.ic_stat_name)
+                .setSmallIcon(activeComms == 0 ? R.drawable.ic_stat_name_noconn : R.drawable.ic_stat_name)
                 .setContentIntent(intent)
                 .build();
     }
@@ -110,6 +127,7 @@ public class CommService extends Service {
         connectionsClient.stopDiscovery();
         connectionsClient.stopAllEndpoints();
         notificationManager.cancel(NOTIFICATION_ID);
+        localBroadcastManager.unregisterReceiver(broadcastReceiver);
     }
 
     private void startDiscovery() {

@@ -1,6 +1,9 @@
 package nl.cl.gram.camarilla;
 
 import android.content.Context;
+import android.content.Intent;
+
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -8,8 +11,8 @@ import com.iwebpp.crypto.TweetNaclFast;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Collection;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 
 import nl.co.gram.camarilla.Payload;
@@ -22,8 +25,9 @@ public class ReceivingHandler implements TransportHandlerInterface {
     private final ByteString id;
     private final CommCenter commCenter;
     private String name;
-    private Collection<PayloadReceiver> receiverSet = new LinkedList<>();
-    private final Channel channel;
+    private final LocalBroadcastManager localBroadcastManager;
+    private final List<Payload> payloads = new ArrayList<>();
+    private final CabalNotification notificationHandler;
 
     @Override
     public String type() { return "receive"; }
@@ -41,11 +45,9 @@ public class ReceivingHandler implements TransportHandlerInterface {
         }
         this.id = ByteString.copyFrom(digest.digest(key));
         this.name = Util.toTitle(this.id.toByteArray());
-        this.channel = new Channel(context, this);
-        this.receiverSet.add(this.channel);
+        this.localBroadcastManager = LocalBroadcastManager.getInstance(context);
+        this.notificationHandler = new CabalNotification(context, this);
     }
-
-    public Channel channel() { return this.channel; }
 
     public synchronized void setName(String name) {
         this.name = name;
@@ -106,16 +108,10 @@ public class ReceivingHandler implements TransportHandlerInterface {
     }
 
     public synchronized void payloadToReceivers(Payload p) {
-        for (PayloadReceiver pr : receiverSet) {
-            pr.receivePayload(p);
-        }
-    }
-
-    public synchronized void addPayloadReceiver(PayloadReceiver pr) {
-        receiverSet.add(pr);
-    }
-    public synchronized void removePayloadReciever(PayloadReceiver pr) {
-        receiverSet.remove(pr);
+        payloads.add(p);
+        Intent intent = new Intent(Intents.PAYLOAD_RECEIVED);
+        intent.putExtra(Intents.EXTRA_NETWORK_ID, id().toByteArray());
+        localBroadcastManager.sendBroadcast(intent);
     }
 
     @Override
@@ -129,5 +125,9 @@ public class ReceivingHandler implements TransportHandlerInterface {
         }
         logger.info("received valid payload from " + from);
         payloadToReceivers(payload);
+    }
+
+    public synchronized List<Payload> payloads() {
+        return new ArrayList<>(payloads);
     }
 }

@@ -1,9 +1,11 @@
 package nl.cl.gram.camarilla;
 
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
@@ -32,6 +34,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.ListAdapter;
@@ -56,25 +59,24 @@ public class NetworkActivity extends AppCompatActivity {
     private ReceiverListAdapter receiverListAdapter = null;
     private LinearLayoutManager linearLayoutManager = null;
     private String from = "???";
-    private boolean visible = false;
+    private LocalBroadcastManager localBroadcastManager = null;
+    private IntentFilter intentFilter = null;
+    private BroadcastReceiver broadcastReceiver = null;
+    private int activeComms = 0;
 
     CommService.Binder commServiceBinder = null;
     private ServiceConnection commServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             commServiceBinder = (CommService.Binder) service;
-            for (ReceivingHandler rh : commServiceBinder.svc().commCenter().receivers()) {
-                if (networkId.equals(rh.id())) {
-                    receivingHandler = rh;
-                    setTitle(rh.name());
-                    from = String.format("%d", commServiceBinder.svc().commCenter().id());
-                    ImageView avatar = findViewById(R.id.avatar);
-                    avatar.setImageBitmap(Util.identicon(ByteString.copyFrom(from, StandardCharsets.UTF_8)));
-                    setShown();
-                    return;
-                }
-            }
-            throw new RuntimeException("receiverhandler id not found");
+            receivingHandler = commServiceBinder.svc().commCenter().receiver(networkId);
+            if (receivingHandler == null) return;
+            setTitle(receivingHandler.name());
+            from = String.format("%x", commServiceBinder.svc().commCenter().id());
+            ImageView avatar = findViewById(R.id.avatar);
+            avatar.setImageBitmap(Util.identicon(ByteString.copyFrom(from, StandardCharsets.UTF_8)));
+            activeComms = commServiceBinder.svc().commCenter().activeComms().size();
+            refreshList();
         }
 
         @Override
@@ -83,46 +85,23 @@ public class NetworkActivity extends AppCompatActivity {
         }
     };
 
-    private final PayloadReceiver refresher = new PayloadReceiver() {
-        @Override
-        public void receivePayload(Payload p) {
-            refreshList();
-        }
-    };
-
     private void refreshList() {
         int size = receiverListAdapter.getItemCount();
         boolean atBottom = size == 0 || linearLayoutManager.findLastCompletelyVisibleItemPosition() == size - 1;
         if (receivingHandler != null) {
-            List<Payload> payloads = receivingHandler.channel().payloads();
+            List<Payload> payloads = receivingHandler.payloads();
             receiverListAdapter.submitList(payloads);
             if (atBottom && payloads.size() > 0)
                 recyclerView.smoothScrollToPosition(payloads.size() - 1);
         }
     }
 
-    private void setShown() {
-        if (receivingHandler == null || !visible) {
-            return;
-        }
-        receivingHandler.addPayloadReceiver(refresher);
-        receivingHandler.channel().cabalShown();
-        refreshList();
-    }
-    private void stopShown() {
-        if (receivingHandler != null && visible) {
-            receivingHandler.removePayloadReciever(refresher);
-            receivingHandler.channel().cabalHidden();
-        }
-    }
-
-    public static final String EXTRA_NETWORK_ID = "nl.co.gram.camarilla.ExtraNetworkId";
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_network);
         editText = findViewById(R.id.inputview);
+        localBroadcastManager = LocalBroadcastManager.getInstance(this);
 
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setHasFixedSize(true);
@@ -132,7 +111,7 @@ public class NetworkActivity extends AppCompatActivity {
         receiverListAdapter = new ReceiverListAdapter();
         recyclerView.setAdapter(receiverListAdapter);
 
-        networkId = ByteString.copyFrom(getIntent().getByteArrayExtra(EXTRA_NETWORK_ID));
+        networkId = ByteString.copyFrom(getIntent().getByteArrayExtra(Intents.EXTRA_NETWORK_ID));
         setTitle(Util.toTitle(networkId.toByteArray()));
         bindService(new Intent(this, CommService.class), commServiceConnection, Context.BIND_AUTO_CREATE);
 
@@ -159,13 +138,27 @@ public class NetworkActivity extends AppCompatActivity {
         });
 
         b3.setBackground(new BitmapDrawable(getResources(), Util.identicon(networkId)));
+
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(Intents.PAYLOAD_RECEIVED);
+        intentFilter.addAction(Intents.ACTIVE_CONNECTIONS_CHANGED);
+        broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (Intents.PAYLOAD_RECEIVED.equals(action)) {
+                    refreshList();
+                } else if (Intents.ACTIVE_CONNECTIONS_CHANGED.equals(action)) {
+                    activeComms = intent.getIntExtra(Intents.EXTRA_ACTIVE_CONNECTIONS, 0);
+                }
+            }
+        };
     }
 
     private void sendText() {
         if (receivingHandler == null) return;
         if (commServiceBinder == null) return;
-        // TODO: not this
-        if (false && commServiceBinder.svc().commCenter().activeComms().size() == 0) {
+        if (activeComms == 0) {
             new AlertDialog.Builder(this).setTitle("No active connections")
                     .setMessage(R.string.no_connections)
                     .create().show();
@@ -218,8 +211,8 @@ public class NetworkActivity extends AppCompatActivity {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         Intent i = new Intent(NetworkActivity.this, QrShowerActivity.class);
-                        i.putExtra(QrShowerActivity.EXTRA_QR_TO_SHOW, QrShowerActivity.url(receivingHandler.sooperSecret()));
-                        i.putExtra(QrShowerActivity.EXTRA_QR_TITLE, "Cabal Secret");
+                        i.putExtra(Intents.EXTRA_QR_TO_SHOW, QrShowerActivity.url(receivingHandler.sooperSecret()));
+                        i.putExtra(Intents.EXTRA_QR_TITLE, "Cabal Secret");
                         startActivity(i);
                     }
                 })
@@ -256,14 +249,19 @@ public class NetworkActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        visible = true;
-        setShown();
+        localBroadcastManager.registerReceiver(broadcastReceiver, intentFilter);
+        Intent intent = new Intent(Intents.CABAL_VISIBILITY_CHANGED);
+        intent.putExtra(Intents.EXTRA_VISIBILITY, true);
+        localBroadcastManager.sendBroadcast(intent);
+        refreshList();
     }
     @Override
     protected void onPause() {
         super.onPause();
-        stopShown();
-        visible = false;
+        localBroadcastManager.unregisterReceiver(broadcastReceiver);
+        Intent intent = new Intent(Intents.CABAL_VISIBILITY_CHANGED);
+        intent.putExtra(Intents.EXTRA_VISIBILITY, false);
+        localBroadcastManager.sendBroadcast(intent);
     }
 
     @Override

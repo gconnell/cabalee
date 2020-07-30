@@ -140,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         logger.info("Request: " + requestCode + ", result: " + (resultCode == RESULT_OK) + " intent: " + data);
         if (requestCode == QR_REQUEST_CODE && resultCode == RESULT_OK) {
-            String qr = data.getStringExtra(QrReaderActivity.EXTRA_QR_CODE);
+            String qr = data.getStringExtra(Intents.EXTRA_QR_CODE);
             byte[] key = QrShowerActivity.fromUrl(qr);
             if (key == null) {
                 logger.severe("invalid key");
@@ -227,7 +227,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 Intent intent = new Intent(MainActivity.this, NetworkActivity.class);
-                intent.putExtra(NetworkActivity.EXTRA_NETWORK_ID, rh.id().toByteArray());
+                intent.putExtra(Intents.EXTRA_NETWORK_ID, rh.id().toByteArray());
                 ActivityOptions options;
                 if (myImage != null) {
                     options = ActivityOptions.makeSceneTransitionAnimation(MainActivity.this, myImage, "cabal");

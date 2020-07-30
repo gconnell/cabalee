@@ -1,6 +1,9 @@
 package nl.cl.gram.camarilla;
 
+import android.content.Intent;
+
 import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.nearby.connection.ConnectionInfo;
 import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
@@ -39,11 +42,13 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private LinkedList<Set<ByteString>> recentUniqueMessages = new LinkedList<>();
     private final static int PER_SET_RECENT = 16 * 1024;
     private final static int NUM_SETS_RECENT = 8;
+    private final LocalBroadcastManager localBroadcastManager;
 
     CommCenter(ConnectionsClient connectionsClient, CommService svc) {
         localID = Util.newRandomID();
         this.connectionsClient = connectionsClient;
         this.commService = svc;
+        localBroadcastManager = LocalBroadcastManager.getInstance(svc);
     }
     public long id() { return localID; }
 
@@ -87,6 +92,14 @@ public class CommCenter extends ConnectionLifecycleCallback {
         return out;
     }
 
+    synchronized public ReceivingHandler receiver(ByteString id) {
+        TransportHandlerInterface handler = messageHandlers.get(id);
+        if (handler != null && handler instanceof ReceivingHandler) {
+            return (ReceivingHandler) handler;
+        }
+        return null;
+    }
+
     synchronized void recheckState(Comm c) {
         switch (c.state()) {
             case CONNECTED:
@@ -104,7 +117,9 @@ public class CommCenter extends ConnectionLifecycleCallback {
                 c.close();
                 break;
         }
-        commService.updateState();
+        Intent intent = new Intent(Intents.ACTIVE_CONNECTIONS_CHANGED);
+        intent.putExtra(Intents.EXTRA_ACTIVE_CONNECTIONS, commsByID.size());
+        localBroadcastManager.sendBroadcast(intent);
     }
 
     private synchronized void disconnect(String remote) {
