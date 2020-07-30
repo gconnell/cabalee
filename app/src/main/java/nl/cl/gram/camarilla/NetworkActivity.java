@@ -54,7 +54,6 @@ public class NetworkActivity extends AppCompatActivity {
     private EditText editText = null;
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
-    private Handler handler = new Handler();
     private LinearLayoutManager linearLayoutManager = null;
     private String from = "???";
     private boolean visible = false;
@@ -87,16 +86,20 @@ public class NetworkActivity extends AppCompatActivity {
     private final PayloadReceiver refresher = new PayloadReceiver() {
         @Override
         public void receivePayload(Payload p) {
-            int size = receiverListAdapter.getItemCount();
-            boolean atBottom = size == 0 || linearLayoutManager.findLastCompletelyVisibleItemPosition() == size-1;
-            if (receivingHandler != null) {
-                List<Payload> payloads = receivingHandler.channel().payloads();
-                receiverListAdapter.submitList(payloads);
-                if (atBottom && payloads.size() > 0)
-                    recyclerView.smoothScrollToPosition(payloads.size()-1);
-            }
+            refreshList();
         }
     };
+
+    private void refreshList() {
+        int size = receiverListAdapter.getItemCount();
+        boolean atBottom = size == 0 || linearLayoutManager.findLastCompletelyVisibleItemPosition() == size - 1;
+        if (receivingHandler != null) {
+            List<Payload> payloads = receivingHandler.channel().payloads();
+            receiverListAdapter.submitList(payloads);
+            if (atBottom && payloads.size() > 0)
+                recyclerView.smoothScrollToPosition(payloads.size() - 1);
+        }
+    }
 
     private void setShown() {
         if (receivingHandler == null || !visible) {
@@ -104,6 +107,7 @@ public class NetworkActivity extends AppCompatActivity {
         }
         receivingHandler.addPayloadReceiver(refresher);
         receivingHandler.channel().cabalShown();
+        refreshList();
     }
     private void stopShown() {
         if (receivingHandler != null && visible) {
@@ -258,8 +262,8 @@ public class NetworkActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        visible = false;
         stopShown();
+        visible = false;
     }
 
     @Override

@@ -10,10 +10,12 @@ import androidx.core.app.NotificationCompat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 
 import nl.co.gram.camarilla.Payload;
 
 public class Channel implements PayloadReceiver {
+    private static final Logger logger = Logger.getLogger("camarilla.channel");
     private static final AtomicInteger notificationIdGen = new AtomicInteger(2);
     private final NotificationCompat.Builder builder;
     private boolean shown = false;
@@ -45,13 +47,17 @@ public class Channel implements PayloadReceiver {
     void cabalShown() {
         notificationManager.cancel(notificationID);
         shown = true;
+        logger.severe("shown");
     }
     void cabalHidden() {
         shown = false;
+        unreadCount = 0;
+        logger.severe("hidden");
     }
 
     @Override
     public synchronized void receivePayload(Payload p) {
+        logger.severe("received");
         payloads.add(p);
         if (shown) return;
         unreadCount++;
