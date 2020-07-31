@@ -91,8 +91,10 @@ public class NetworkActivity extends AppCompatActivity {
         if (receivingHandler != null) {
             List<Payload> payloads = receivingHandler.payloads();
             receiverListAdapter.submitList(payloads);
-            if (atBottom && payloads.size() > 0)
-                recyclerView.smoothScrollToPosition(payloads.size() - 1);
+            int lastIdx = payloads.size()-1;
+            if (payloads.size() > 0 && (atBottom || payloads.get(lastIdx).getCleartextBroadcast().getFrom().equals(from))) {
+                recyclerView.smoothScrollToPosition(lastIdx);
+            }
         }
     }
 
