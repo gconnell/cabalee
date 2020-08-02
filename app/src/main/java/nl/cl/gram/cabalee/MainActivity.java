@@ -1,4 +1,4 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 
 
 public class MainActivity extends AppCompatActivity {
-    private static final Logger logger = Logger.getLogger("camarilla.main");
+    private static final Logger logger = Logger.getLogger("cabalee.main");
     private Handler handler = null;
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
@@ -194,7 +194,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-
 
     class MyViewHolder extends RecyclerView.ViewHolder {
         // each data item is just a string in this case

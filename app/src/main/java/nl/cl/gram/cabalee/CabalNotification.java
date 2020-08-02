@@ -1,4 +1,4 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -10,16 +10,12 @@ import android.content.IntentFilter;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
-import nl.co.gram.camarilla.Payload;
-
 public class CabalNotification {
-    private static final Logger logger = Logger.getLogger("camarilla.channel");
+    private static final Logger logger = Logger.getLogger("cabalee.channel");
     private static final AtomicInteger notificationIdGen = new AtomicInteger(2);
     private final NotificationCompat.Builder builder;
     private boolean visibleViaNetworkActivity = false;

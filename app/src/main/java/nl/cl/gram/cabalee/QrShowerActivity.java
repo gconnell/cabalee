@@ -1,4 +1,4 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import android.graphics.Bitmap;
 import android.os.Bundle;
@@ -13,21 +13,21 @@ import com.google.zxing.common.BitMatrix;
 import java.util.logging.Logger;
 
 public class QrShowerActivity extends AppCompatActivity {
-    private static final Logger logger = Logger.getLogger("camarilla.qrs");
+    private static final Logger logger = Logger.getLogger("cabalee.qrs");
 
     private String toShow = null;
     private ImageView imgView = null;
 
-    public static final String camarilla_PREFIX = "camarilla://";
+    public static final String cabalee_PREFIX = "cabalee://";
 
     public static String url(byte[] id) {
-        return camarilla_PREFIX + Util.toHex(id);
+        return cabalee_PREFIX + Util.toHex(id);
     }
     public static byte[] fromUrl(String url) {
-        if (url == null || !url.startsWith(camarilla_PREFIX)) {
+        if (url == null || !url.startsWith(cabalee_PREFIX)) {
             return null;
         }
-        return Util.fromHex(url.substring(camarilla_PREFIX.length()));
+        return Util.fromHex(url.substring(cabalee_PREFIX.length()));
     }
 
     @Override

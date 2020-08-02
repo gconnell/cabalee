@@ -1,4 +1,4 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -28,7 +28,7 @@ import com.google.android.gms.nearby.connection.Strategy;
 import java.util.logging.Logger;
 
 public class CommService extends Service {
-    private static final Logger logger = Logger.getLogger("camarilla.commservice");
+    private static final Logger logger = Logger.getLogger("cabalee.commservice");
     private static final int NOTIFICATION_ID = 1;
     private static final String STOP_SERVICE = "SERVICE_KILL_THYSELF";
     private static final String CHANNEL_ID = "comm";
@@ -36,7 +36,7 @@ public class CommService extends Service {
     private ConnectionsClient connectionsClient = null;
     private CommCenter commCenter = null;
     private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
-    private static final String SERVICE_ID = "nl.co.gram.camarilla";
+    private static final String SERVICE_ID = "nl.co.gram.cabalee";
     private NotificationManager notificationManager = null;
     private LocalBroadcastManager localBroadcastManager = null;
     private IntentFilter intentFilter = null;
@@ -77,7 +77,7 @@ public class CommService extends Service {
 
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            notificationManager.createNotificationChannel(new NotificationChannel(CHANNEL_ID, "Camarilla", NotificationManager.IMPORTANCE_LOW));
+            notificationManager.createNotificationChannel(new NotificationChannel(CHANNEL_ID, getString(R.string.app_name), NotificationManager.IMPORTANCE_LOW));
             notificationManager.createNotificationChannel(new NotificationChannel(MESSAGE_CHANNEL_ID, "Cabals", NotificationManager.IMPORTANCE_DEFAULT));
         }
 
@@ -110,7 +110,7 @@ public class CommService extends Service {
         main.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent intent = PendingIntent.getActivity(this, 0, main, PendingIntent.FLAG_UPDATE_CURRENT);
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Camarilla")
+                .setContentTitle(getString(R.string.app_name))
                 .setContentText(description)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)

@@ -1,4 +1,4 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import android.content.Intent;
 
@@ -27,12 +27,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import nl.co.gram.camarilla.Hello;
-import nl.co.gram.camarilla.MsgType;
-import nl.co.gram.camarilla.Transport;
+import nl.co.gram.cabalee.Hello;
+import nl.co.gram.cabalee.MsgType;
+import nl.co.gram.cabalee.Transport;
 
 public class CommCenter extends ConnectionLifecycleCallback {
-    private static final Logger logger = Logger.getLogger("camarilla.center");
+    private static final Logger logger = Logger.getLogger("cabalee.center");
     private final long localID;
     private final CommService commService;
     private Map<Long, Comm> commsByID = new HashMap<>();

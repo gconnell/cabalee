@@ -1,4 +1,4 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import android.content.Context;
 import android.content.Intent;
@@ -15,11 +15,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-import nl.co.gram.camarilla.Payload;
-import nl.co.gram.camarilla.Transport;
+import nl.co.gram.cabalee.Payload;
+import nl.co.gram.cabalee.Transport;
 
 public class ReceivingHandler implements TransportHandlerInterface {
-    private static final Logger logger = Logger.getLogger("camarilla.receiver");
+    private static final Logger logger = Logger.getLogger("cabalee.receiver");
     private final byte[] key;
     private final TweetNaclFast.SecretBox box;
     private final ByteString id;

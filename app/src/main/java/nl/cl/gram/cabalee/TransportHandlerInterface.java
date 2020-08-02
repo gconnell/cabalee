@@ -1,6 +1,6 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
-import nl.co.gram.camarilla.Transport;
+import nl.co.gram.cabalee.Transport;
 
 public interface TransportHandlerInterface {
     void handleTransport(long from, Transport transport);

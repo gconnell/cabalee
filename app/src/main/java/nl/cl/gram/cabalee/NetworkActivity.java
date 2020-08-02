@@ -1,4 +1,4 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -10,7 +10,6 @@ import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.text.Spannable;
 import android.text.SpannableString;
@@ -47,11 +46,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
 
-import nl.co.gram.camarilla.MessageContents;
-import nl.co.gram.camarilla.Payload;
+import nl.co.gram.cabalee.MessageContents;
+import nl.co.gram.cabalee.Payload;
 
 public class NetworkActivity extends AppCompatActivity {
-    private static final Logger logger = Logger.getLogger("camarilla.netact");
+    private static final Logger logger = Logger.getLogger("cabalee.netact");
     private ReceivingHandler receivingHandler = null;
     private ByteString networkId = null;
     private EditText editText = null;

@@ -1,11 +1,11 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import java.util.logging.Logger;
 
-import nl.co.gram.camarilla.Transport;
+import nl.co.gram.cabalee.Transport;
 
 public class RebroadcastHandler implements TransportHandlerInterface {
-    private final Logger logger = Logger.getLogger("camarilla.hydhandler");
+    private final Logger logger = Logger.getLogger("cabalee.hydhandler");
     private final CommCenter commCenter;
 
     public RebroadcastHandler(CommCenter commCenter) {

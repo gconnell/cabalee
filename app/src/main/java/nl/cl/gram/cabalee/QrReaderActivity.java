@@ -1,4 +1,4 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -12,7 +12,7 @@ import java.util.logging.Logger;
 import me.dm7.barcodescanner.zxing.ZXingScannerView;
 
 public class QrReaderActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
-    private static final Logger logger = Logger.getLogger("camarilla.qrr");
+    private static final Logger logger = Logger.getLogger("cabalee.qrr");
     private ZXingScannerView mScannerView;
 
     @Override

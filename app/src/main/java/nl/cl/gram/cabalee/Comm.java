@@ -1,4 +1,4 @@
-package nl.cl.gram.camarilla;
+package nl.cl.gram.cabalee;
 
 import androidx.annotation.NonNull;
 
@@ -10,12 +10,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import nl.co.gram.camarilla.Hello;
-import nl.co.gram.camarilla.MsgType;
-import nl.co.gram.camarilla.Transport;
+import nl.co.gram.cabalee.Hello;
+import nl.co.gram.cabalee.MsgType;
+import nl.co.gram.cabalee.Transport;
 
 public class Comm extends PayloadCallback {
-    private static final Logger logger = Logger.getLogger("camarilla.comm");
+    private static final Logger logger = Logger.getLogger("cabalee.comm");
     private final String remote;
     private State state = State.STARTING;
     private final CommCenter commCenter;
