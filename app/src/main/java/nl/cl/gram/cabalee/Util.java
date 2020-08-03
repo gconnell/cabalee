@@ -64,24 +64,33 @@ public class Util {
         return s.substring(1, 26);  // random subset of the base64'd sha256
     }
 
-    public static class Uint64 {
+    public static class Uint32 {
         public static void writeLittleEndianTo(long out, OutputStream os) throws IOException {
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 4; i++) {
                 os.write((byte) (out & 0xFFL));
                 out >>= 8;
             }
         }
+        public static byte[] writeLittleEndian(long out) {
+            byte[] b = new byte[4];
+            for (int i = 0; i < 4; i++) {
+                b[i] = (byte) (out & 0xFFL);
+                out >>= 8;
+            }
+            return b;
+        }
         public static long readLittleEndianFrom(byte[] b) {
+            Util.checkArgument(b.length >= 4, "readlittleendian bytes < 4");
             long out = 0;
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 4; i++) {
                 out |= (0xFFL & (long) b[i]) << (i*8);
             }
             return out;
         }
         public static long readLittleEndianFrom(InputStream is) throws IOException {
             long out = 0;
-            for (int i = 0; i < 8; i++) {
-                out = (out >> 8) | (0xFFL & (long) is.read()) << 56;
+            for (int i = 0; i < 4; i++) {
+                out = (out >> 8) | (0xFFL & (long) is.read()) << 24;
             }
             return out;
         }
@@ -111,8 +120,11 @@ public class Util {
     public static long newRandomID() {
         byte[] b = new byte[8];
         Util.randomBytes(b);
-        long i = Util.Uint64.readLittleEndianFrom(b);
-        return (i < 0 ? -i : i);
+        long out = 0;
+        for (int i = 0; i < 8; i++) {
+            out |= (0xFFL & (long) b[i]) << (i*8);
+        }
+        return (out < 0 ? -out : out);
     }
 
     public static double nanosAsSeconds(long nanos) {

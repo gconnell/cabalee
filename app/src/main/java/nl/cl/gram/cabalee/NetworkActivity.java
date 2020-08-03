@@ -159,7 +159,7 @@ public class NetworkActivity extends AppCompatActivity {
     private void sendText() {
         if (receivingHandler == null) return;
         if (commServiceBinder == null) return;
-        if (activeComms == 0) {
+        if (activeComms == 0 && false  /* TODO */) {
             new AlertDialog.Builder(this).setTitle("No active connections")
                     .setMessage(R.string.no_connections)
                     .create().show();

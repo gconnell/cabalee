@@ -19,8 +19,8 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
-import nl.co.gram.outernet.MessageContents;
-import nl.co.gram.outernet.Payload;
+import nl.co.gram.cabalee.MessageContents;
+import nl.co.gram.cabalee.Payload;
 
 import static org.junit.Assert.*;
 
@@ -47,6 +47,41 @@ public class ExampleInstrumentedTest {
         Payload p = Payload.newBuilder()
                 .setCleartextBroadcast(MessageContents.newBuilder()
                         .setText("wheee"))
+                .build();
+        ByteString boxed = ReceivingHandler.boxIt(p, box);
+        Payload p2 = ReceivingHandler.unboxIt(boxed, box);
+        assertTrue(p.equals(p2));
+        assertNull(ReceivingHandler.unboxIt(boxed.substring(1), box));
+        assertNull(ReceivingHandler.unboxIt(boxed.substring(0, boxed.size() - 1), box));
+        assertEquals(128 + 1 + TweetNaclFast.SecretBox.overheadLength + TweetNaclFast.SecretBox.nonceLength, boxed.size());
+    }
+    @Test
+    public void testBoxAndUnboxLarge() {
+        byte[] key = new byte[TweetNaclFast.SecretBox.keyLength];
+        TweetNaclFast.SecretBox box = new TweetNaclFast.SecretBox(key);
+        Payload p = Payload.newBuilder()
+                .setCleartextBroadcast(MessageContents.newBuilder()
+                        .setText("111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111" +
+                                "111111111111111111111111111111111111"))
                 .build();
         ByteString boxed = ReceivingHandler.boxIt(p, box);
         Payload p2 = ReceivingHandler.unboxIt(boxed, box);

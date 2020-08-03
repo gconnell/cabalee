@@ -9,6 +9,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.iwebpp.crypto.TweetNaclFast;
 
+import java.io.ByteArrayInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -60,10 +61,18 @@ public class ReceivingHandler implements TransportHandlerInterface {
         return key;
     }
 
+    private static final ByteString paddingHelper = ByteString.copyFrom(new byte[1024]);
     public static ByteString boxIt(Payload payload, TweetNaclFast.SecretBox box) {
         byte[] nonce = new byte[TweetNaclFast.SecretBox.nonceLength];
         Util.randomBytes(nonce);
-        byte[] boxed = box.box(payload.toByteArray(), nonce);
+        ByteString out = payload.toByteString();
+        if (out.size() < 128) {
+            int paddingSize = 128-out.size();
+            out = ByteString.copyFrom(new byte[]{(byte) paddingSize}).concat(out).concat(paddingHelper.substring(0, paddingSize));
+        } else {
+            out = ByteString.copyFrom(new byte[]{0}).concat(out);
+        }
+        byte[] boxed = box.box(out.toByteArray(), nonce);
         return ByteString.copyFrom(nonce).concat(ByteString.copyFrom(boxed));
     }
     public static Payload unboxIt(ByteString bytes, TweetNaclFast.SecretBox box) {
@@ -75,17 +84,19 @@ public class ReceivingHandler implements TransportHandlerInterface {
         ByteString nonce = bytes.substring(0, TweetNaclFast.SecretBox.nonceLength);
         ByteString encrypted = bytes.substring(TweetNaclFast.SecretBox.nonceLength);
         byte[] cleartext = box.open(encrypted.toByteArray(), nonce.toByteArray());
-        if (cleartext == null) {
+        if (cleartext == null || cleartext.length < 128 || cleartext[0] < 0 || cleartext.length < 1 + (int) cleartext[0]) {
             logger.severe("unable to open box");
             return null;
         }
         try {
-            payload = Payload.parseFrom(cleartext);
-        } catch (InvalidProtocolBufferException e) {
+            ByteString serializedPayload = ByteString.copyFrom(cleartext)
+                    .substring(1, cleartext.length - (int) cleartext[0]);
+            payload = Payload.parseFrom(serializedPayload);
+        } catch (Exception e) {
             logger.severe("discarding transport: " + e.getMessage());
             return null;
         }
-        return payload;
+        return payload.toBuilder().build();
     }
 
     public byte[] sooperSecret() {
