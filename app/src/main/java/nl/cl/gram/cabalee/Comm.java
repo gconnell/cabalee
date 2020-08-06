@@ -66,8 +66,12 @@ public class Comm extends PayloadCallback {
             case MsgType.HELLO_VALUE: {
                 Hello h = Hello.parseFrom(in);
                 logger.info("Hello from " + remoteID() + ": " + h.getId());
-                remoteClient = h.getId();
-                setState(State.IDENTIFIED);
+                if (state == State.CONNECTED) {
+                    remoteClient = h.getId();
+                    setState(State.IDENTIFIED);
+                } else if (state == State.IDENTIFIED && h.getId() != remoteClient) {
+                    setState(State.DISCONNECTING);
+                }
                 break;
             }
             case MsgType.TRANSPORT_VALUE: {

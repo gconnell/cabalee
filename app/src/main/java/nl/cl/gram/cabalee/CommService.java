@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
 
 import androidx.annotation.NonNull;
@@ -25,7 +26,10 @@ import com.google.android.gms.nearby.connection.DiscoveryOptions;
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
 import com.google.android.gms.nearby.connection.Strategy;
 
+import java.util.Collections;
 import java.util.logging.Logger;
+
+import nl.co.gram.cabalee.Hello;
 
 public class CommService extends Service {
     private static final Logger logger = Logger.getLogger("cabalee.commservice");
@@ -33,6 +37,7 @@ public class CommService extends Service {
     private static final String STOP_SERVICE = "SERVICE_KILL_THYSELF";
     private static final String CHANNEL_ID = "comm";
     public static final String MESSAGE_CHANNEL_ID = "msgs";
+    private static final long KEEP_ALIVE_MILLIS = 75 * 1_000;
     private ConnectionsClient connectionsClient = null;
     private CommCenter commCenter = null;
     private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
@@ -41,9 +46,19 @@ public class CommService extends Service {
     private LocalBroadcastManager localBroadcastManager = null;
     private IntentFilter intentFilter = null;
     private BroadcastReceiver broadcastReceiver = null;
+    private Handler handler = null;
 
-    public CommService() {
-    }
+    private Runnable keepAliveRunnable = new Runnable() {
+        @Override
+        public void run() {
+            commCenter.sendToAll(
+                    Hello.newBuilder()
+                        .setId(commCenter.id())
+                        .build(),
+                    Collections.EMPTY_LIST);
+            handler.postDelayed(this, KEEP_ALIVE_MILLIS);
+        }
+    };
 
     IBinder iBinder = new Binder();
 
@@ -101,6 +116,8 @@ public class CommService extends Service {
         commCenter = new CommCenter(connectionsClient, this);
         startAdvertising();
         startDiscovery();
+        handler = new Handler(getMainLooper());
+        handler.postDelayed(keepAliveRunnable, KEEP_ALIVE_MILLIS);
     }
 
     private Notification notification(int activeComms) {
@@ -141,6 +158,7 @@ public class CommService extends Service {
     public void onDestroy() {
         super.onDestroy();
         logger.severe("Stopping CommService");
+        handler.removeCallbacks(keepAliveRunnable);
         connectionsClient.stopAdvertising();
         connectionsClient.stopDiscovery();
         connectionsClient.stopAllEndpoints();

@@ -8,7 +8,6 @@ import "google/protobuf/timestamp.proto";
 
 message Hello {
   fixed64 id = 1;
-  repeated bytes network_id = 2;
 }
 
 enum MsgType {
