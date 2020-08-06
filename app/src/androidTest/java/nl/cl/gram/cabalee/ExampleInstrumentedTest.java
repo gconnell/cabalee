@@ -44,16 +44,22 @@ public class ExampleInstrumentedTest {
     public void testBoxAndUnbox() {
         byte[] key = new byte[TweetNaclFast.SecretBox.keyLength];
         TweetNaclFast.SecretBox box = new TweetNaclFast.SecretBox(key);
-        Payload p = Payload.newBuilder()
-                .setCleartextBroadcast(MessageContents.newBuilder()
-                        .setText("wheee"))
-                .build();
-        ByteString boxed = ReceivingHandler.boxIt(p, box);
-        Payload p2 = ReceivingHandler.unboxIt(boxed, box);
-        assertTrue(p.equals(p2));
-        assertNull(ReceivingHandler.unboxIt(boxed.substring(1), box));
-        assertNull(ReceivingHandler.unboxIt(boxed.substring(0, boxed.size() - 1), box));
-        assertEquals(128 + 1 + TweetNaclFast.SecretBox.overheadLength + TweetNaclFast.SecretBox.nonceLength, boxed.size());
+        for (int i = 0; i < 1000; i++) {
+            logger.info("Run " + i);
+            Payload p = Payload.newBuilder()
+                    .setCleartextBroadcast(MessageContents.newBuilder()
+                            .setText("wheee"))
+                    .build();
+            ByteString boxed = ReceivingHandler.boxIt(p, box);
+            Payload p2 = ReceivingHandler.unboxIt(boxed, box);
+            assertTrue(p.equals(p2));
+            assertNull(ReceivingHandler.unboxIt(boxed.substring(1), box));
+            assertNull(ReceivingHandler.unboxIt(boxed.substring(0, boxed.size() - 1), box));
+            int minSize = 127 + 1 + TweetNaclFast.SecretBox.overheadLength + TweetNaclFast.SecretBox.nonceLength;
+            if (minSize > boxed.size()) {
+                fail("Boxed size " + boxed.size() + " < min size " + minSize);
+            }
+        }
     }
     @Test
     public void testBoxAndUnboxLarge() {

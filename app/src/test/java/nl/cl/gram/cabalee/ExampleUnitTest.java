@@ -14,4 +14,12 @@ public class ExampleUnitTest {
     public void addition_isCorrect() {
         assertEquals(4, 2 + 2);
     }
+
+    @Test
+    public void paddingSize() {
+        assertEquals(ReceivingHandler.paddingSize(0), 127);
+        for (int i = 0; i < 1000; i++) {
+            assertTrue(ReceivingHandler.paddingSize(50) >= 127-50);
+        }
+    }
 }

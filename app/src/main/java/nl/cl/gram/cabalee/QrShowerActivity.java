@@ -18,16 +18,16 @@ public class QrShowerActivity extends AppCompatActivity {
     private String toShow = null;
     private ImageView imgView = null;
 
-    public static final String cabalee_PREFIX = "cabalee://";
+    public static final String CABALEE_PREFIX = "cabalee://localhost/v1/cabal/";
 
     public static String url(byte[] id) {
-        return cabalee_PREFIX + Util.toHex(id);
+        return CABALEE_PREFIX + Util.toHex(id);
     }
     public static byte[] fromUrl(String url) {
-        if (url == null || !url.startsWith(cabalee_PREFIX)) {
+        if (url == null || !url.startsWith(CABALEE_PREFIX)) {
             return null;
         }
-        return Util.fromHex(url.substring(cabalee_PREFIX.length()));
+        return Util.fromHex(url.substring(CABALEE_PREFIX.length()));
     }
 
     @Override

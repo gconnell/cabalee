@@ -61,17 +61,21 @@ public class ReceivingHandler implements TransportHandlerInterface {
         return key;
     }
 
+    static int paddingSize(int outputSize) {
+        byte[] paddingSizeByte = new byte[1];
+        Util.randomBytes(paddingSizeByte);
+        int paddingSize = 0x7f & (int) paddingSizeByte[0];
+        int minPadding = 127 - outputSize;
+        return paddingSize < minPadding ? minPadding : paddingSize;
+    }
+
     private static final ByteString paddingHelper = ByteString.copyFrom(new byte[1024]);
     public static ByteString boxIt(Payload payload, TweetNaclFast.SecretBox box) {
         byte[] nonce = new byte[TweetNaclFast.SecretBox.nonceLength];
         Util.randomBytes(nonce);
         ByteString out = payload.toByteString();
-        if (out.size() < 128) {
-            int paddingSize = 128-out.size();
-            out = ByteString.copyFrom(new byte[]{(byte) paddingSize}).concat(out).concat(paddingHelper.substring(0, paddingSize));
-        } else {
-            out = ByteString.copyFrom(new byte[]{0}).concat(out);
-        }
+        int paddingSize = paddingSize(out.size());
+        out = ByteString.copyFrom(new byte[]{(byte) paddingSize}).concat(out).concat(paddingHelper.substring(0, paddingSize));
         byte[] boxed = box.box(out.toByteArray(), nonce);
         return ByteString.copyFrom(nonce).concat(ByteString.copyFrom(boxed));
     }

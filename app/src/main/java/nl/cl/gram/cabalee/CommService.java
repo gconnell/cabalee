@@ -109,12 +109,30 @@ public class CommService extends Service {
         Intent main = new Intent(this, MainActivity.class);
         main.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent intent = PendingIntent.getActivity(this, 0, main, PendingIntent.FLAG_UPDATE_CURRENT);
+        int icon;
+        switch (activeComms) {
+            case 0:
+                icon = R.drawable.ic_stat_name_0;
+                break;
+            case 1:
+                icon = R.drawable.ic_stat_name_1;
+                break;
+            case 2:
+                icon = R.drawable.ic_stat_name_2;
+                break;
+            case 3:
+                icon = R.drawable.ic_stat_name_3;
+                break;
+            default:
+                icon = R.drawable.ic_stat_name_4;
+                break;
+        }
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(description)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
-                .setSmallIcon(activeComms == 0 ? R.drawable.ic_stat_name_noconn : R.drawable.ic_stat_name)
+                .setSmallIcon(icon)
                 .setContentIntent(intent)
                 .build();
     }

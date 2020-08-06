@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Cabalee</string>
+    <string name="app_name">Cabalī</string>
     <string name="add_member">
         To add another member to this Cabal, you need to provide them with a secret.
         You are about to display that secret as a QR code on your screen.
@@ -13,7 +13,7 @@
         \n\nWould like to display your code and allow another person to join this Cabal?
     </string>
     <string name="no_connections">
-        Cabalee is currently not connected to any other devices, so it is unable to send messages.
+        Cabalī is currently not connected to any other devices, so it is unable to send messages.
 
         \n\nWait until you have a connection, then try again.
     </string>
