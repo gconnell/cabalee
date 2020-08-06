@@ -43,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private CommService.Binder commServiceBinder = null;
     private ArrayList<ReceivingHandler> receivingHandlers = new ArrayList<>();
     private ByteString navigateTo = null;
+    private Runnable navigateRunnable = null;
 
     private void refresh() {
         receiverListAdapter.submitList(new ArrayList<>(receivingHandlers));
@@ -105,7 +106,6 @@ public class MainActivity extends AppCompatActivity {
                     if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA)
                             != PackageManager.PERMISSION_GRANTED) {
                         requestPermissions(new String[]{Manifest.permission.CAMERA}, 1);
-                        return;
                     }
                 }
                 startActivityForResult(new Intent(MainActivity.this, QrReaderActivity.class), QR_REQUEST_CODE);
@@ -168,7 +168,8 @@ public class MainActivity extends AppCompatActivity {
         CommCenter commCenter = commServiceBinder.svc().commCenter();
         ReceivingHandler rh = commCenter.forKey(key);
         navigateTo = rh.id();
-        receivingHandlers.add(rh);
+        if (!receivingHandlers.contains(rh))
+            receivingHandlers.add(rh);
         refresh();
         recyclerView.smoothScrollToPosition(receivingHandlers.size()-1);
     }
@@ -235,13 +236,17 @@ public class MainActivity extends AppCompatActivity {
             textView.setText("Cabal: " + data.name());
             myImage.setImageBitmap(Util.identicon(data.id()));
             if (data.id().equals(navigateTo)) {
-                navigateTo = null;
-                handler.postDelayed(new Runnable() {
+                if (navigateRunnable != null) {
+                    handler.removeCallbacks(navigateRunnable);
+                }
+                navigateRunnable = new Runnable() {
                     @Override
                     public void run() {
+                        navigateTo = null;
                         toNetworkPage(data, myImage);
                     }
-                }, 350);
+                };
+                handler.postDelayed(navigateRunnable, 350);
             }
         }
     }
