@@ -1,6 +1,7 @@
 package nl.cl.gram.cabalee;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -50,7 +51,7 @@ public class QrReaderActivity extends AppCompatActivity implements ZXingScannerV
         //If you would like to resume scanning, call this method below:
         //mScannerView.resumeCameraPreview(this);
         Intent intent = new Intent();
-        intent.putExtra(Intents.EXTRA_QR_CODE, rawResult.getText());
+        intent.setData(Uri.parse(rawResult.getText()));
         setResult(RESULT_OK, intent);
         finish();
     }

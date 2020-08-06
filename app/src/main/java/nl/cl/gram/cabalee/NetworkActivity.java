@@ -9,6 +9,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.Spannable;
@@ -212,7 +213,7 @@ public class NetworkActivity extends AppCompatActivity {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         Intent i = new Intent(NetworkActivity.this, QrShowerActivity.class);
-                        i.putExtra(Intents.EXTRA_QR_TO_SHOW, QrShowerActivity.url(receivingHandler.sooperSecret()));
+                        i.setData(Uri.parse(QrShowerActivity.url(receivingHandler.sooperSecret())));
                         i.putExtra(Intents.EXTRA_QR_TITLE, "Cabal Secret");
                         startActivity(i);
                     }

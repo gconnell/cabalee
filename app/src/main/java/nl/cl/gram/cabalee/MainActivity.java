@@ -22,10 +22,14 @@ import android.os.IBinder;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import com.google.protobuf.ByteString;
 
 import java.util.ArrayList;
 import java.util.logging.Logger;
@@ -38,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private ReceiverListAdapter receiverListAdapter = null;
     private CommService.Binder commServiceBinder = null;
     private ArrayList<ReceivingHandler> receivingHandlers = new ArrayList<>();
+    private ByteString navigateTo = null;
 
     private void refresh() {
         receiverListAdapter.submitList(new ArrayList<>(receivingHandlers));
@@ -89,11 +94,7 @@ public class MainActivity extends AppCompatActivity {
         init.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (commServiceBinder == null) { return; }
-                CommCenter commCenter = commServiceBinder.svc().commCenter();
-                ReceivingHandler rh = new ReceivingHandler(commCenter, commServiceBinder.svc());
-                commCenter.setReceiver(rh);
-                addHandler(rh);
+                addReceivingHandler(null);
             }
         });
         Button add = findViewById(R.id.button2);
@@ -123,38 +124,53 @@ public class MainActivity extends AppCompatActivity {
                 finish();
             }
         });
-    }
 
-    private void addHandler(ReceivingHandler rh) {
-        receivingHandlers.add(rh);
-        refresh();
-        recyclerView.smoothScrollToPosition(receivingHandlers.size()-1);
+        final Intent startIntent = getIntent();
+        if (startIntent != null && startIntent.getDataString() != null && startIntent.getDataString().startsWith(QrShowerActivity.CABALEE_PREFIX)) {
+            logger.severe("startIntent action: " + startIntent.getAction());
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    handleCabaleeUrl(startIntent);
+                }
+            }, 1000);
+        }
     }
 
     private static final int QR_REQUEST_CODE = 1;
 
     @Override
-    protected void onActivityResult (int requestCode,
-                                     int resultCode,
-                                     Intent data) {
+    protected void onActivityResult(int requestCode,
+                                    int resultCode,
+                                    Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         logger.info("Request: " + requestCode + ", result: " + (resultCode == RESULT_OK) + " intent: " + data);
         if (requestCode == QR_REQUEST_CODE && resultCode == RESULT_OK) {
-            String qr = data.getStringExtra(Intents.EXTRA_QR_CODE);
-            byte[] key = QrShowerActivity.fromUrl(qr);
-            if (key == null) {
-                logger.severe("invalid key");
-                return;
-            }
-            if (commServiceBinder == null) {
-                logger.severe("no comm service");
-                return;
-            }
-            CommCenter commCenter = commServiceBinder.svc().commCenter();
-            ReceivingHandler rh = new ReceivingHandler(key, commCenter, commServiceBinder.svc());
-            commCenter.setReceiver(rh);
-            addHandler(rh);
+            handleCabaleeUrl(data);
         }
+    }
+
+    private void handleCabaleeUrl(Intent data) {
+        String qr = data.getDataString();
+        byte[] key = QrShowerActivity.fromUrl(qr);
+        if (key == null) {
+            logger.severe("invalid key");
+            return;
+        }
+        addReceivingHandler(key);
+    }
+
+    private void addReceivingHandler(byte[] key) {
+        if (commServiceBinder == null) {
+            logger.severe("no comm service");
+            return;
+        }
+        CommCenter commCenter = commServiceBinder.svc().commCenter();
+        ReceivingHandler rh = commCenter.forKey(key);
+        navigateTo = rh.id();
+        receivingHandlers.add(rh);
+        refresh();
+        recyclerView.smoothScrollToPosition(receivingHandlers.size()-1);
     }
 
     @Override
@@ -218,6 +234,15 @@ public class MainActivity extends AppCompatActivity {
             receivingHandler = data;
             textView.setText("Cabal: " + data.name());
             myImage.setImageBitmap(Util.identicon(data.id()));
+            if (data.id().equals(navigateTo)) {
+                navigateTo = null;
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        toNetworkPage(data, myImage);
+                    }
+                }, 350);
+            }
         }
     }
 

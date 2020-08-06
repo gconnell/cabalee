@@ -100,6 +100,21 @@ public class CommCenter extends ConnectionLifecycleCallback {
         return null;
     }
 
+    synchronized public ReceivingHandler forKey(byte[] key) {
+        ReceivingHandler rh;
+        if (key == null) {
+            rh = new ReceivingHandler(this, commService);
+        } else {
+            rh = new ReceivingHandler(key, this, commService);
+        }
+        if (messageHandlers.containsKey(rh.id()) && messageHandlers.get(rh.id()) instanceof ReceivingHandler) {
+            rh = (ReceivingHandler) messageHandlers.get(rh.id());
+        } else {
+            messageHandlers.put(rh.id(), rh);
+        }
+        return rh;
+    }
+
     synchronized void recheckState(Comm c) {
         switch (c.state()) {
             case CONNECTED:
@@ -177,12 +192,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
     public void onDisconnected(@NonNull String s) {
         logger.info("onDisconnected: " + s);
         commFor(s).setState(Comm.State.DISCONNECTED);
-    }
-
-    public void setReceiver(ReceivingHandler rh) {
-        synchronized (this) {
-            messageHandlers.put(rh.id(), rh);
-        }
     }
 
     private boolean discardTransport(Transport t) {

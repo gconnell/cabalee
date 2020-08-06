@@ -15,6 +15,17 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Accepts URIs that begin with "cabalee://localhost/v1/cabal/...” -->
+                <data
+                    android:scheme="cabalee"
+                    android:host="localhost"
+                    android:pathPrefix="/v1/cabal/"
+                    />
+            </intent-filter>
         </activity>
         <activity
             android:name="nl.cl.gram.cabalee.QrReaderActivity"

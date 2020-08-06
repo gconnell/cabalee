@@ -33,7 +33,7 @@ public class QrShowerActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        toShow = getIntent().getStringExtra(Intents.EXTRA_QR_TO_SHOW);
+        toShow = getIntent().getDataString();
         setTitle(getIntent().getStringExtra(Intents.EXTRA_QR_TITLE));
         logger.info("showing qr: " + toShow);
 
