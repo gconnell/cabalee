@@ -48,18 +48,6 @@ public class CommService extends Service {
     private BroadcastReceiver broadcastReceiver = null;
     private Handler handler = null;
 
-    private Runnable keepAliveRunnable = new Runnable() {
-        @Override
-        public void run() {
-            commCenter.sendToAll(
-                    Hello.newBuilder()
-                        .setId(commCenter.id())
-                        .build(),
-                    Collections.EMPTY_LIST);
-            handler.postDelayed(this, KEEP_ALIVE_MILLIS);
-        }
-    };
-
     IBinder iBinder = new Binder();
 
     @Nullable
@@ -84,6 +72,11 @@ public class CommService extends Service {
             return Service.START_NOT_STICKY;
         }
         return Service.START_STICKY;
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        commCenter.onTrimMemory();
     }
 
     @Override
@@ -117,7 +110,6 @@ public class CommService extends Service {
         startAdvertising();
         startDiscovery();
         handler = new Handler(getMainLooper());
-        handler.postDelayed(keepAliveRunnable, KEEP_ALIVE_MILLIS);
     }
 
     private Notification notification(int activeComms) {
@@ -158,7 +150,6 @@ public class CommService extends Service {
     public void onDestroy() {
         super.onDestroy();
         logger.severe("Stopping CommService");
-        handler.removeCallbacks(keepAliveRunnable);
         connectionsClient.stopAdvertising();
         connectionsClient.stopDiscovery();
         connectionsClient.stopAllEndpoints();
@@ -174,7 +165,7 @@ public class CommService extends Service {
             public void onEndpointFound(@NonNull String s, @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
                 logger.info("onEndpointFound: " + s);
                 connectionsClient
-                        .requestConnection(Long.toString(commCenter.id()), s, commCenter)
+                        .requestConnection("cabalee", s, commCenter)
                         .addOnSuccessListener(
                                 (Void unused) -> {
                                     logger.info("requesting connection to " + s + " succeeded");
@@ -207,7 +198,7 @@ public class CommService extends Service {
         AdvertisingOptions advertisingOptions =
                 new AdvertisingOptions.Builder().setStrategy(STRATEGY).build();
         connectionsClient
-                .startAdvertising(Long.toString(commCenter.id()), SERVICE_ID, commCenter, advertisingOptions)
+                .startAdvertising("cabalee", SERVICE_ID, commCenter, advertisingOptions)
                 .addOnSuccessListener(
                         (Void unused) -> {
                             logger.info("Advertizing started");

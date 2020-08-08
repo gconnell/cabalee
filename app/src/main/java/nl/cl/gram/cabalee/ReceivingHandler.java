@@ -6,10 +6,8 @@ import android.content.Intent;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.iwebpp.crypto.TweetNaclFast;
 
-import java.io.ByteArrayInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -26,11 +24,11 @@ public class ReceivingHandler {
     private final ByteString id;
     private final CommCenter commCenter;
     private String name;
+    private final IDSet ids = new IDSet(0, 1);
     private final LocalBroadcastManager localBroadcastManager;
     private final List<Payload> payloads = new ArrayList<>();
     private final CabalNotification notificationHandler;
 
-    @Override
     public String type() { return "receive"; }
 
     public ReceivingHandler(byte[] key, CommCenter commCenter, Context context) {
@@ -115,10 +113,11 @@ public class ReceivingHandler {
 
     public void sendPayload(Payload payload) {
         ByteString boxed = boxIt(payload, box);
-        commCenter.broadcastTransport(Transport.newBuilder()
+        Transport t = Transport.newBuilder()
                 .setPayload(boxed)
-                .setNetworkId(id())
-                .build());
+                .build();
+        ids.checkAndAdd(Util.transportID(t));
+        commCenter.broadcastTransport(t, null);
         payloadToReceivers(payload);
     }
 
@@ -130,11 +129,15 @@ public class ReceivingHandler {
     }
 
     public boolean handleTransport(Transport transport) {
-        Util.checkArgument(id.equals(transport.getNetworkId()), "network id mismatch");
         Payload payload = unboxIt(transport.getPayload(), box);
         if (payload == null) {
             logger.severe("transport discarded");
             return false;
+        }
+        if (ids.checkAndAdd(Util.transportID(transport))) {
+            logger.severe("replay of old message");
+            // we've already seen this, so let the caller know we've handled it.
+            return true;
         }
         logger.info("received valid payload");
         payloadToReceivers(payload);

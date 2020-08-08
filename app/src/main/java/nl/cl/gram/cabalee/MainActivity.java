@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             commServiceBinder = (CommService.Binder) service;
-            logger.info("I am " + commServiceBinder.svc().commCenter().id());
+            logger.info("CommService connected");
             receivingHandlers.clear();
             receivingHandlers.addAll(commServiceBinder.svc().commCenter().receivers());
             refresh();

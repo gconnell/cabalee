@@ -15,6 +15,7 @@ import android.os.IBinder;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
+import android.util.Base64;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -72,7 +73,9 @@ public class NetworkActivity extends AppCompatActivity {
             receivingHandler = commServiceBinder.svc().commCenter().receiver(networkId);
             if (receivingHandler == null) return;
             setTitle(receivingHandler.name());
-            from = String.format("%x", commServiceBinder.svc().commCenter().id());
+            byte[] myID = new byte[8];
+            Util.randomBytes(myID);
+            from = Base64.encodeToString(myID, Base64.URL_SAFE|Base64.NO_WRAP|Base64.NO_PADDING);
             ImageView avatar = findViewById(R.id.avatar);
             avatar.setImageBitmap(Util.identicon(ByteString.copyFrom(from, StandardCharsets.UTF_8)));
             activeComms = commServiceBinder.svc().commCenter().activeComms().size();
@@ -173,7 +176,6 @@ public class NetworkActivity extends AppCompatActivity {
                 .setCleartextBroadcast(MessageContents.newBuilder()
                         .setFrom(from)
                         .setText(out)
-                        .setTimestamp(Util.now())
                         .build())
                 .build();
         receivingHandler.sendPayload(p);
@@ -294,9 +296,6 @@ public class NetworkActivity extends AppCompatActivity {
                     identicon.setImageBitmap(bmp);
                     MessageContents contents = data.getCleartextBroadcast();
                     textView.setText(contents.getText());
-                    if (contents.hasLocation()) {
-                        textView.append("\n@{" + contents.getLocation().getLatitude() + "," + contents.getLocation().getLongitude() + "}");
-                    }
                 }
             }
             Date d = new Date();

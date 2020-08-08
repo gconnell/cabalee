@@ -10,7 +10,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import nl.co.gram.cabalee.Hello;
 import nl.co.gram.cabalee.MsgType;
 import nl.co.gram.cabalee.Transport;
 
@@ -28,7 +27,6 @@ public class Comm extends PayloadCallback {
         STARTING,
         ACCEPTING,
         CONNECTED,
-        IDENTIFIED,
         DISCONNECTING,
         DISCONNECTED;
     }
@@ -63,21 +61,10 @@ public class Comm extends PayloadCallback {
     private void handlePayloadBytes(byte[] bytes) throws IOException {
         ByteArrayInputStream in = new ByteArrayInputStream(bytes);
         switch (in.read()) {
-            case MsgType.HELLO_VALUE: {
-                Hello h = Hello.parseFrom(in);
-                logger.info("Hello from " + remoteID() + ": " + h.getId());
-                if (state == State.CONNECTED) {
-                    remoteClient = h.getId();
-                    setState(State.IDENTIFIED);
-                } else if (state == State.IDENTIFIED && h.getId() != remoteClient) {
-                    setState(State.DISCONNECTING);
-                }
-                break;
-            }
             case MsgType.TRANSPORT_VALUE: {
                 Transport t = Transport.parseFrom(in);
                 logger.info("Transport from " + remoteID());
-                commCenter.handleTransport(remoteID(), t);
+                commCenter.handleTransport(remote, t);
                 break;
             }
             default:
