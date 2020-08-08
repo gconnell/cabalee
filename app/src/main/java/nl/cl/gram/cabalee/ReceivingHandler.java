@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 import nl.co.gram.cabalee.Payload;
 import nl.co.gram.cabalee.Transport;
 
-public class ReceivingHandler implements TransportHandlerInterface {
+public class ReceivingHandler {
     private static final Logger logger = Logger.getLogger("cabalee.receiver");
     private final byte[] key;
     private final TweetNaclFast.SecretBox box;
@@ -129,17 +129,16 @@ public class ReceivingHandler implements TransportHandlerInterface {
         localBroadcastManager.sendBroadcast(intent);
     }
 
-    @Override
-    public void handleTransport(long from, Transport transport) {
-        commCenter.broadcastTransport(transport);
+    public boolean handleTransport(Transport transport) {
         Util.checkArgument(id.equals(transport.getNetworkId()), "network id mismatch");
         Payload payload = unboxIt(transport.getPayload(), box);
         if (payload == null) {
-            logger.severe("transport from " + from + " discarded");
-            return;
+            logger.severe("transport discarded");
+            return false;
         }
-        logger.info("received valid payload from " + from);
+        logger.info("received valid payload");
         payloadToReceivers(payload);
+        return true;
     }
 
     public synchronized List<Payload> payloads() {

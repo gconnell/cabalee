@@ -37,6 +37,7 @@ import java.util.logging.Logger;
 
 public class MainActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("cabalee.main");
+    private static final int QR_CAMERA_REQUEST_CODE = 2;
     private Handler handler = null;
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
@@ -105,7 +106,8 @@ public class MainActivity extends AppCompatActivity {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA)
                             != PackageManager.PERMISSION_GRANTED) {
-                        requestPermissions(new String[]{Manifest.permission.CAMERA}, 1);
+                        requestPermissions(new String[]{Manifest.permission.CAMERA}, QR_CAMERA_REQUEST_CODE);
+                        return;
                     }
                 }
                 startActivityForResult(new Intent(MainActivity.this, QrReaderActivity.class), QR_REQUEST_CODE);
@@ -203,6 +205,18 @@ public class MainActivity extends AppCompatActivity {
         unbindService(commServiceConnection);
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        if (requestCode == QR_CAMERA_REQUEST_CODE) {
+            for (int r : results) {
+                if (r != PackageManager.PERMISSION_GRANTED) {
+                    return;
+                }
+            }
+            startActivityForResult(new Intent(MainActivity.this, QrReaderActivity.class), QR_REQUEST_CODE);
+        }
+    }
+
     private void enableLocation() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -214,10 +228,10 @@ public class MainActivity extends AppCompatActivity {
 
     class MyViewHolder extends RecyclerView.ViewHolder {
         // each data item is just a string in this case
-        public FrameLayout frameLayout;
-        public TextView textView;
-        public ImageView myImage;
-        ReceivingHandler receivingHandler = null;
+        private FrameLayout frameLayout;
+        private TextView textView;
+        private ImageView myImage;
+        private ReceivingHandler receivingHandler = null;
         public MyViewHolder(FrameLayout fl) {
             super(fl);
             frameLayout = fl;

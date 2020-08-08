@@ -20,7 +20,6 @@ message Transport {
   bytes network_id = 1;
   bytes payload = 2;  // marshalled, encrypted Payload object
 
-  // NOT SIGNED:
   repeated fixed64 path = 4;
 }
 

@@ -38,7 +38,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private Map<Long, Comm> commsByID = new HashMap<>();
     private Map<String, Comm> commsByRemote = new HashMap<>();
     private final ConnectionsClient connectionsClient;
-    private Map<ByteString, TransportHandlerInterface> messageHandlers = new HashMap<>();
+    private Map<ByteString, ReceivingHandler> messageHandlers = new HashMap<>();
     private LinkedList<Set<ByteString>> recentUniqueMessages = new LinkedList<>();
     private final static int PER_SET_RECENT = 16 * 1024;
     private final static int NUM_SETS_RECENT = 8;
@@ -239,19 +239,20 @@ public class CommCenter extends ConnectionLifecycleCallback {
         }
     }
 
-    public void handleTransport(long from, Transport t) {
+    public void handleTransport(String from, Transport t) {
         if (discardTransport(t)) {
             return;
         }
+        broadcastTransport(t);
         TransportHandlerInterface h;
+        Collection<ReceivingHandler> rhs;
         synchronized (this) {
-            h = messageHandlers.get(t.getNetworkId());
-            if (h == null) {
-                h = new RebroadcastHandler(this);
-                messageHandlers.put(t.getNetworkId(), h);
+            rhs = new ArrayList<ReceivingHandler>(messageHandlers.values());
+        }
+        for (ReceivingHandler rh : rhs) {
+            if (rh.handleTransport(from, t)) {
+                break;
             }
         }
-        logger.info("handling network " + Util.toHex(t.getNetworkId().toByteArray()) + " with: " + h.type());
-        h.handleTransport(from, t);
     }
 }
