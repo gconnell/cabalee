@@ -3,6 +3,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item android:title="Add participant via QR code"
+        android:icon="@drawable/ic_baseline_cancel_schedule_send_24"
+        app:showAsAction="always"
+        android:id="@+id/destroy"/>
+
+    <item android:title="Add participant via QR code"
         android:icon="@drawable/ic_baseline_edit_24"
         app:showAsAction="always"
         android:id="@+id/editname"/>
@@ -10,6 +15,6 @@
     <item android:title="Add participant via QR code"
         android:icon="@drawable/ic_baseline_person_add_24"
         app:showAsAction="always"
-        android:id="@+id/menuadd"/>
+        android:id="@+id/addmember"/>
 
 </menu>

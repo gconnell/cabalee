@@ -1,5 +1,6 @@
 package nl.cl.gram.cabalee;
 
+import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -8,14 +9,17 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
+import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.text.Spannable;
 import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
-import android.util.Base64;
+import android.text.style.StyleSpan;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -43,13 +47,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.protobuf.ByteString;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
 
 import nl.co.gram.cabalee.MessageContents;
 import nl.co.gram.cabalee.Payload;
+import nl.co.gram.cabalee.SelfDestruct;
 
 public class NetworkActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("cabalee.netact");
@@ -59,11 +63,9 @@ public class NetworkActivity extends AppCompatActivity {
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
     private LinearLayoutManager linearLayoutManager = null;
-    private String from = "???";
     private LocalBroadcastManager localBroadcastManager = null;
     private IntentFilter intentFilter = null;
     private BroadcastReceiver broadcastReceiver = null;
-    private int activeComms = 0;
 
     CommService.Binder commServiceBinder = null;
     private ServiceConnection commServiceConnection = new ServiceConnection() {
@@ -73,12 +75,8 @@ public class NetworkActivity extends AppCompatActivity {
             receivingHandler = commServiceBinder.svc().commCenter().receiver(networkId);
             if (receivingHandler == null) return;
             setTitle(receivingHandler.name());
-            byte[] myID = new byte[8];
-            Util.randomBytes(myID);
-            from = Base64.encodeToString(myID, Base64.URL_SAFE|Base64.NO_WRAP|Base64.NO_PADDING);
             ImageView avatar = findViewById(R.id.avatar);
-            avatar.setImageBitmap(Util.identicon(ByteString.copyFrom(from, StandardCharsets.UTF_8)));
-            activeComms = commServiceBinder.svc().commCenter().activeComms().size();
+            avatar.setImageBitmap(Util.identicon(receivingHandler.myID()));
             refreshList();
         }
 
@@ -95,7 +93,7 @@ public class NetworkActivity extends AppCompatActivity {
             List<Payload> payloads = receivingHandler.payloads();
             receiverListAdapter.submitList(payloads);
             int lastIdx = payloads.size()-1;
-            if (payloads.size() > 0 && (atBottom || payloads.get(lastIdx).getCleartextBroadcast().getFrom().equals(from))) {
+            if (payloads.size() > 0 && (atBottom || payloads.get(lastIdx).getCleartextBroadcast().getFrom().equals(receivingHandler.myID()))) {
                 recyclerView.smoothScrollToPosition(lastIdx);
             }
         }
@@ -146,15 +144,18 @@ public class NetworkActivity extends AppCompatActivity {
 
         intentFilter = new IntentFilter();
         intentFilter.addAction(Intents.PAYLOAD_RECEIVED);
-        intentFilter.addAction(Intents.ACTIVE_CONNECTIONS_CHANGED);
+        intentFilter.addAction(Intents.CABAL_DESTROY);
         broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
                 if (Intents.PAYLOAD_RECEIVED.equals(action)) {
                     refreshList();
-                } else if (Intents.ACTIVE_CONNECTIONS_CHANGED.equals(action)) {
-                    activeComms = intent.getIntExtra(Intents.EXTRA_ACTIVE_CONNECTIONS, 0);
+                } else if (Intents.CABAL_DESTROY.equals(action)) {
+                    byte[] id = intent.getByteArrayExtra(Intents.EXTRA_NETWORK_ID);
+                    if (networkId.equals(ByteString.copyFrom(id))) {
+                        NetworkActivity.this.finish();
+                    }
                 }
             }
         };
@@ -163,7 +164,7 @@ public class NetworkActivity extends AppCompatActivity {
     private void sendText() {
         if (receivingHandler == null) return;
         if (commServiceBinder == null) return;
-        if (activeComms == 0 && false  /* TODO */) {
+        if (commServiceBinder.svc().commCenter().activeComms().size() == 0) {
             new AlertDialog.Builder(this).setTitle("No active connections")
                     .setMessage(R.string.no_connections)
                     .create().show();
@@ -174,7 +175,7 @@ public class NetworkActivity extends AppCompatActivity {
         editText.getText().clear();
         Payload p = Payload.newBuilder()
                 .setCleartextBroadcast(MessageContents.newBuilder()
-                        .setFrom(from)
+                        .setFrom(receivingHandler.myID())
                         .setText(out)
                         .build())
                 .build();
@@ -192,15 +193,50 @@ public class NetworkActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
         switch (item.getItemId()) {
-            case R.id.menuadd:
+            case R.id.addmember:
                 if (receivingHandler != null) showQr();
                 return true;
             case R.id.editname:
                 if (receivingHandler != null) editName();
                 return true;
+            case R.id.destroy:
+                if (receivingHandler != null) destroy();
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    private void destroy() {
+        final Handler h = new Handler(getApplicationContext().getMainLooper());
+        final Runnable destroy = new Runnable() {
+            int attempts = 4;
+            @Override
+            public void run() {
+                logger.info("Sending destroy");
+                receivingHandler.sendPayload(Payload.newBuilder()
+                        .setSelfDestruct(SelfDestruct.newBuilder())
+                        .build());
+                if (0 < --attempts) {
+                    h.postDelayed(this, 15_000);
+                }
+            }
+        };
+        new AlertDialog.Builder(this)
+                .setMessage(R.string.self_destruct_warning)
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                    }
+                })
+                .setPositiveButton(R.string.self_destruct, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        h.post(destroy);
+                    }
+                })
+                .create()
+                .show();
     }
 
     private void showQr() {
@@ -254,18 +290,24 @@ public class NetworkActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         localBroadcastManager.registerReceiver(broadcastReceiver, intentFilter);
-        Intent intent = new Intent(Intents.CABAL_VISIBILITY_CHANGED);
-        intent.putExtra(Intents.EXTRA_VISIBILITY, true);
-        localBroadcastManager.sendBroadcast(intent);
         refreshList();
+        sendVisibility(true);
     }
+
+    private void sendVisibility(boolean visible) {
+        if (receivingHandler != null) {
+            Intent intent = new Intent(Intents.CABAL_VISIBILITY_CHANGED);
+            intent.putExtra(Intents.EXTRA_VISIBILITY, visible);
+            intent.putExtra(Intents.EXTRA_NETWORK_ID, receivingHandler.id().toByteArray());
+            localBroadcastManager.sendBroadcast(intent);
+        }
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
         localBroadcastManager.unregisterReceiver(broadcastReceiver);
-        Intent intent = new Intent(Intents.CABAL_VISIBILITY_CHANGED);
-        intent.putExtra(Intents.EXTRA_VISIBILITY, false);
-        localBroadcastManager.sendBroadcast(intent);
+        sendVisibility(false);
     }
 
     @Override
@@ -292,16 +334,28 @@ public class NetworkActivity extends AppCompatActivity {
             textView.setText("?");
             switch (data.getKindCase()) {
                 case CLEARTEXT_BROADCAST: {
-                    Bitmap bmp = Util.identicon(ByteString.copyFrom(payload.getCleartextBroadcast().getFrom(), StandardCharsets.UTF_8));
+                    Bitmap bmp = Util.identicon(payload.getCleartextBroadcast().getFrom());
                     identicon.setImageBitmap(bmp);
                     MessageContents contents = data.getCleartextBroadcast();
                     textView.setText(contents.getText());
+                    break;
+                }
+                case SELF_DESTRUCT: {
+                    textView.setBackgroundColor(getResources().getColor(R.color.destroyColor));
+                    Spannable s = new SpannableString(getResources().getString(R.string.self_destruct));
+                    s.setSpan(new StyleSpan(Typeface.BOLD), 0, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    textView.setText(s);
+                    textView.append(payload.getSelfDestruct().getText());
+                    identicon.setImageDrawable(getDrawable(R.drawable.ic_baseline_delete_forever_24));
+                    break;
                 }
             }
+            /*
             Date d = new Date();
             Spannable s = new SpannableString("\n@ "  + d);
             s.setSpan(new ForegroundColorSpan(0x55000000), 0, s.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             textView.append(s);
+            */
         }
     }
 

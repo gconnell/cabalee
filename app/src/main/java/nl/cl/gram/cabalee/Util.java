@@ -60,8 +60,8 @@ public class Util {
     }
 
     public static String toTitle(byte[] b) {
-        String s = Base64.encodeToString(b, Base64.URL_SAFE|Base64.NO_PADDING|Base64.NO_WRAP);
-        return s.substring(1, 26);  // random subset of the base64'd sha256
+        String s = Base64.encodeToString(b, 0, 16, Base64.URL_SAFE|Base64.NO_PADDING|Base64.NO_WRAP);
+        return s;
     }
 
     public static class Uint32 {

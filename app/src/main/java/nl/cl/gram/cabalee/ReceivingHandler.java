@@ -19,6 +19,7 @@ import nl.co.gram.cabalee.Payload;
 public class ReceivingHandler {
     private static final Logger logger = Logger.getLogger("cabalee.receiver");
     private final byte[] key;
+    private final ByteString myID;
     private final TweetNaclFast.SecretBox box;
     private final ByteString id;
     private final CommCenter commCenter;
@@ -45,6 +46,13 @@ public class ReceivingHandler {
         this.name = Util.toTitle(this.id.toByteArray());
         this.localBroadcastManager = LocalBroadcastManager.getInstance(context);
         this.notificationHandler = new CabalNotification(context, this);
+        byte[] randomID = new byte[6];
+        Util.randomBytes(randomID);
+        myID = ByteString.copyFrom(randomID);
+    }
+
+    public ByteString myID() {
+        return myID;
     }
 
     public synchronized void setName(String name) {
@@ -66,7 +74,7 @@ public class ReceivingHandler {
         return paddingSize < minPadding ? minPadding : paddingSize;
     }
 
-    private static final ByteString paddingHelper = ByteString.copyFrom(new byte[1024]);
+    private static final ByteString paddingHelper = ByteString.copyFrom(new byte[128]);
     public static ByteString boxIt(Payload payload, TweetNaclFast.SecretBox box) {
         byte[] nonce = new byte[TweetNaclFast.SecretBox.nonceLength];
         Util.randomBytes(nonce);
@@ -117,10 +125,21 @@ public class ReceivingHandler {
     }
 
     public synchronized void payloadToReceivers(Payload p) {
-        payloads.add(p);
-        Intent intent = new Intent(Intents.PAYLOAD_RECEIVED);
-        intent.putExtra(Intents.EXTRA_NETWORK_ID, id().toByteArray());
-        localBroadcastManager.sendBroadcast(intent);
+        switch (p.getKindCase()) {
+            case SELF_DESTRUCT: {
+                Intent intent = new Intent(Intents.CABAL_DESTROY_REQUESTED);
+                intent.putExtra(Intents.EXTRA_NETWORK_ID, id().toByteArray());
+                localBroadcastManager.sendBroadcast(intent);
+            }
+            // FALLTHROUGH
+            case CLEARTEXT_BROADCAST: {
+                payloads.add(p);
+                Intent intent = new Intent(Intents.PAYLOAD_RECEIVED);
+                intent.putExtra(Intents.EXTRA_NETWORK_ID, id().toByteArray());
+                localBroadcastManager.sendBroadcast(intent);
+                break;
+            }
+        }
     }
 
     public boolean handleTransport(ByteString transport) {

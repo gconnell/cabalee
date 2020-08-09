@@ -3,6 +3,7 @@ package nl.cl.gram.cabalee;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.ListAdapter;
@@ -10,9 +11,11 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.app.ActivityOptions;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -22,8 +25,6 @@ import android.os.IBinder;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.AlphaAnimation;
-import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -45,9 +46,16 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<ReceivingHandler> receivingHandlers = new ArrayList<>();
     private ByteString navigateTo = null;
     private Runnable navigateRunnable = null;
+    private LocalBroadcastManager localBroadcastManager = null;
+    private BroadcastReceiver broadcastReceiver = null;
 
     private void refresh() {
-        receiverListAdapter.submitList(new ArrayList<>(receivingHandlers));
+        if (commServiceBinder == null) {
+            receivingHandlers = new ArrayList<>();
+        } else {
+            receivingHandlers = new ArrayList<>(commServiceBinder.svc().commCenter().receivers());
+        }
+        receiverListAdapter.submitList(receivingHandlers);
     }
 
     private ServiceConnection commServiceConnection = new ServiceConnection() {
@@ -55,8 +63,6 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service) {
             commServiceBinder = (CommService.Binder) service;
             logger.info("CommService connected");
-            receivingHandlers.clear();
-            receivingHandlers.addAll(commServiceBinder.svc().commCenter().receivers());
             refresh();
         }
 
@@ -72,6 +78,18 @@ public class MainActivity extends AppCompatActivity {
             startForegroundService(intent);
         } else {
             startService(intent);
+        }
+    }
+
+    private void navigate(ReceivingHandler rh) {
+        if (navigateRunnable != null) {
+            handler.removeCallbacks(navigateRunnable);
+            navigateRunnable = null;
+        }
+        if (rh == null) {
+            navigateTo = null;
+        } else {
+            navigateTo = rh.id();
         }
     }
 
@@ -103,6 +121,7 @@ public class MainActivity extends AppCompatActivity {
         add.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                navigate(null);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA)
                             != PackageManager.PERMISSION_GRANTED) {
@@ -119,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
         stop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                navigate(null);
                 if (commServiceBinder != null) {
                     commServiceBinder.svc().stopForeground(true);
                     commServiceBinder.svc().stopSelf();
@@ -126,6 +146,22 @@ public class MainActivity extends AppCompatActivity {
                 finish();
             }
         });
+
+        localBroadcastManager = LocalBroadcastManager.getInstance(this);
+        broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (commServiceBinder == null) return;
+                if (Intents.CABAL_DESTROY.equals(action)) {
+                    logger.info("MainActivity got CABAL_DESTROY");
+                    refresh();
+                }
+            }
+        };
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Intents.CABAL_DESTROY);
+        localBroadcastManager.registerReceiver(broadcastReceiver, intentFilter);
 
         final Intent startIntent = getIntent();
         if (startIntent != null && startIntent.getDataString() != null && startIntent.getDataString().startsWith(QrShowerActivity.CABALEE_PREFIX)) {
@@ -169,11 +205,9 @@ public class MainActivity extends AppCompatActivity {
         }
         CommCenter commCenter = commServiceBinder.svc().commCenter();
         ReceivingHandler rh = commCenter.forKey(key);
-        navigateTo = rh.id();
-        if (!receivingHandlers.contains(rh))
-            receivingHandlers.add(rh);
+        navigate(rh);
         refresh();
-        recyclerView.smoothScrollToPosition(receivingHandlers.size()-1);
+        recyclerView.smoothScrollToPosition(receivingHandlers.indexOf(rh));
     }
 
     @Override
@@ -185,7 +219,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         refresh();
-        receiverListAdapter.notifyDataSetChanged();
     }
 
     @Override
@@ -202,6 +235,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         logger.info("Stopping");
+        localBroadcastManager.unregisterReceiver(broadcastReceiver);
         unbindService(commServiceConnection);
     }
 

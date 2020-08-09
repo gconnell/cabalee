@@ -9,4 +9,6 @@ public class Intents {
     public static final String PAYLOAD_RECEIVED = "nl.co.gram.cabalee.PayloadReceived";
     public static final String CABAL_VISIBILITY_CHANGED = "nl.co.gram.cabalee.CabalVisibilityChanged";
     public static final String ACTIVE_CONNECTIONS_CHANGED = "nl.co.gram.cabalee.ActiveConnectionsChanged";
+    public static final String CABAL_DESTROY_REQUESTED = "nl.cl.gram.cabalee.CabalDestroyRequested";
+    public static final String CABAL_DESTROY = "nl.cl.gram.cabalee.CabalDestroy";
 }

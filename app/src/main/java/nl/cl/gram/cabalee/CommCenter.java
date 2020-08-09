@@ -13,8 +13,6 @@ import com.google.android.gms.nearby.connection.ConnectionsStatusCodes;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.protobuf.ByteString;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -31,8 +29,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private final ConnectionsClient connectionsClient;
     private Map<ByteString, ReceivingHandler> messageHandlers = new HashMap<>();
     private IDSet recentMessageIDs = new IDSet(60_000_000_000L, 15);
-    private final static int PER_SET_RECENT = 16 * 1024;
-    private final static int NUM_SETS_RECENT = 8;
     private final LocalBroadcastManager localBroadcastManager;
 
     CommCenter(ConnectionsClient connectionsClient, CommService svc) {
@@ -174,5 +170,9 @@ public class CommCenter extends ConnectionLifecycleCallback {
 
     public void onTrimMemory() {
         recentMessageIDs.trimMemory();
+    }
+
+    public synchronized void destroyCabal(byte[] id) {
+        messageHandlers.remove(ByteString.copyFrom(id));
     }
 }

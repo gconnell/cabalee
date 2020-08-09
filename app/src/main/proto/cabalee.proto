@@ -23,6 +23,6 @@ message SelfDestruct {
 }
 
 message MessageContents {
-  string from = 1;
+  bytes from = 1;
   string text = 3;
 }

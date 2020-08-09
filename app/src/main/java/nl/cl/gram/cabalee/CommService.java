@@ -26,6 +26,7 @@ import com.google.android.gms.nearby.connection.DiscoveryOptions;
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
 import com.google.android.gms.nearby.connection.Strategy;
 
+import java.util.Base64;
 import java.util.logging.Logger;
 
 public class CommService extends Service {
@@ -79,6 +80,7 @@ public class CommService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        handler = new Handler(getMainLooper());
 
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -90,6 +92,7 @@ public class CommService extends Service {
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
         intentFilter = new IntentFilter();
         intentFilter.addAction(Intents.ACTIVE_CONNECTIONS_CHANGED);
+        intentFilter.addAction(Intents.CABAL_DESTROY_REQUESTED);
         broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -97,16 +100,26 @@ public class CommService extends Service {
                 if (Intents.ACTIVE_CONNECTIONS_CHANGED.equals(action)) {
                     int num = intent.getIntExtra(Intents.EXTRA_ACTIVE_CONNECTIONS, 0);
                     notificationManager.notify(NOTIFICATION_ID, notification(num));
+                } else if (Intents.CABAL_DESTROY_REQUESTED.equals(action)) {
+                    final byte[] id = intent.getByteArrayExtra(Intents.EXTRA_NETWORK_ID);
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            logger.warning("Destroying cabal");
+                            commCenter.destroyCabal(id);
+                            Intent intent = new Intent(Intents.CABAL_DESTROY);
+                            intent.putExtra(Intents.EXTRA_NETWORK_ID, id);
+                            localBroadcastManager.sendBroadcast(intent);
+                        }
+                    }, 60_000);
                 }
             }
         };
         localBroadcastManager.registerReceiver(broadcastReceiver, intentFilter);
-
         connectionsClient = Nearby.getConnectionsClient(this);
         commCenter = new CommCenter(connectionsClient, this);
         startAdvertising();
         startDiscovery();
-        handler = new Handler(getMainLooper());
     }
 
     private Notification notification(int activeComms) {
