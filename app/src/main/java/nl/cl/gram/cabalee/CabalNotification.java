@@ -54,9 +54,7 @@ public class CabalNotification {
                 }
                 if (Intents.CABAL_VISIBILITY_CHANGED.equals(action)) {
                     boolean v = intent.getBooleanExtra(Intents.EXTRA_VISIBILITY, false);
-                    if (v != visibleViaNetworkActivity) {
-                        changeVisibility(v);
-                    }
+                    changeVisibility(v);
                 } else if (Intents.PAYLOAD_RECEIVED.equals(action)) {
                     incrementCount(1);
                 } else if (Intents.CABAL_DESTROY_REQUESTED.equals(action)) {
@@ -90,6 +88,7 @@ public class CabalNotification {
         NotificationCompat.Builder b = builder.setNumber(unreadCount);
         if (destruction) {
             b = b.setColor(context.getResources().getColor(R.color.destroyColor))
+                    .setColorized(true)
                     .setPriority(NotificationManager.IMPORTANCE_HIGH)
                     .setContentTitle("DESTROYING: " + rh.name());
         } else {

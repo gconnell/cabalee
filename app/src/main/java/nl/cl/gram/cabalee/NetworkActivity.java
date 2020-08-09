@@ -295,12 +295,10 @@ public class NetworkActivity extends AppCompatActivity {
     }
 
     private void sendVisibility(boolean visible) {
-        if (receivingHandler != null) {
-            Intent intent = new Intent(Intents.CABAL_VISIBILITY_CHANGED);
-            intent.putExtra(Intents.EXTRA_VISIBILITY, visible);
-            intent.putExtra(Intents.EXTRA_NETWORK_ID, receivingHandler.id().toByteArray());
-            localBroadcastManager.sendBroadcast(intent);
-        }
+        Intent intent = new Intent(Intents.CABAL_VISIBILITY_CHANGED);
+        intent.putExtra(Intents.EXTRA_VISIBILITY, visible);
+        intent.putExtra(Intents.EXTRA_NETWORK_ID, networkId.toByteArray());
+        localBroadcastManager.sendBroadcast(intent);
     }
 
     @Override
