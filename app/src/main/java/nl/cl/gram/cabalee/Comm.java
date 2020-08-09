@@ -5,13 +5,12 @@ import androidx.annotation.NonNull;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
+import com.google.protobuf.ByteString;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 
 import nl.co.gram.cabalee.MsgType;
-import nl.co.gram.cabalee.Transport;
 
 public class Comm extends PayloadCallback {
     private static final Logger logger = Logger.getLogger("cabalee.comm");
@@ -54,28 +53,29 @@ public class Comm extends PayloadCallback {
         return remote;
     }
 
-    public void sendProto(@NonNull Object proto) {
-        commCenter.sendProto(proto, remote);
+    public void sendPayload(ByteString payload) {
+        commCenter.sendPayload(payload, remote);
     }
 
-    private void handlePayloadBytes(byte[] bytes) throws IOException {
-        ByteArrayInputStream in = new ByteArrayInputStream(bytes);
-        switch (in.read()) {
-            case MsgType.TRANSPORT_VALUE: {
-                Transport t = Transport.parseFrom(in);
+    private void handlePayloadBytes(ByteString bs) throws IOException {
+        if (bs.size() < 1) {
+            throw new IOException("payload is too small");
+        }
+        switch (bs.byteAt(0)) {
+            case MsgType.CABAL_MESSAGE_V1_VALUE: {
                 logger.info("Transport from " + remoteID());
-                commCenter.handleTransport(remote, t);
+                commCenter.handleTransport(remote, bs.substring(1));
                 break;
             }
             default:
-                throw new IOException("unsupported type " + bytes[0]);
+                throw new IOException("unsupported type " + bs.byteAt(0));
         }
     }
 
     private void handlePayload(@NonNull Payload payload) throws IOException {
         switch (payload.getType()) {
             case Payload.Type.BYTES:
-                handlePayloadBytes(payload.asBytes());
+                handlePayloadBytes(ByteString.copyFrom(payload.asBytes()));
                 break;
             default:
                 logger.info("unexpected payload type " + payload.getType() + " ignored");

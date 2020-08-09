@@ -13,8 +13,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
-import nl.co.gram.cabalee.Transport;
-
 public class Util {
     private static final char CHAR_0 = 0x30;
     private static final char CHAR_A = 0x61;
@@ -192,14 +190,14 @@ public class Util {
     }
 
 
-    public static ByteString transportID(Transport t) {
+    public static ByteString transportID(ByteString bs) {
         MessageDigest d;
         try {
             d = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("no sha256");
         }
-        d.update(t.getPayload().asReadOnlyByteBuffer());
+        d.update(bs.asReadOnlyByteBuffer());
         return ByteString.copyFrom(d.digest());
     }
 }

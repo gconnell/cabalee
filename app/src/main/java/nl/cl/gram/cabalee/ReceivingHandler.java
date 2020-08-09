@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import nl.co.gram.cabalee.Payload;
-import nl.co.gram.cabalee.Transport;
 
 public class ReceivingHandler {
     private static final Logger logger = Logger.getLogger("cabalee.receiver");
@@ -73,7 +72,7 @@ public class ReceivingHandler {
         Util.randomBytes(nonce);
         ByteString out = payload.toByteString();
         int paddingSize = paddingSize(out.size());
-        out = ByteString.copyFrom(new byte[]{(byte) paddingSize}).concat(out).concat(paddingHelper.substring(0, paddingSize));
+        out = ByteString.copyFrom(new byte[]{(byte) paddingSize}).concat(paddingHelper.substring(0, paddingSize)).concat(out);
         byte[] boxed = box.box(out.toByteArray(), nonce);
         return ByteString.copyFrom(nonce).concat(ByteString.copyFrom(boxed));
     }
@@ -91,8 +90,7 @@ public class ReceivingHandler {
             return null;
         }
         try {
-            ByteString serializedPayload = ByteString.copyFrom(cleartext)
-                    .substring(1, cleartext.length - (int) cleartext[0]);
+            ByteString serializedPayload = ByteString.copyFrom(cleartext).substring(1+(int)cleartext[0]);
             payload = Payload.parseFrom(serializedPayload);
         } catch (Exception e) {
             logger.severe("discarding transport: " + e.getMessage());
@@ -113,11 +111,8 @@ public class ReceivingHandler {
 
     public void sendPayload(Payload payload) {
         ByteString boxed = boxIt(payload, box);
-        Transport t = Transport.newBuilder()
-                .setPayload(boxed)
-                .build();
-        ids.checkAndAdd(Util.transportID(t));
-        commCenter.broadcastTransport(t, null);
+        ids.checkAndAdd(Util.transportID(boxed));
+        commCenter.broadcastTransport(boxed, null);
         payloadToReceivers(payload);
     }
 
@@ -128,8 +123,8 @@ public class ReceivingHandler {
         localBroadcastManager.sendBroadcast(intent);
     }
 
-    public boolean handleTransport(Transport transport) {
-        Payload payload = unboxIt(transport.getPayload(), box);
+    public boolean handleTransport(ByteString transport) {
+        Payload payload = unboxIt(transport, box);
         if (payload == null) {
             logger.severe("transport discarded");
             return false;

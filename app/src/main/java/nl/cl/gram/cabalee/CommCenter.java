@@ -22,9 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import nl.co.gram.cabalee.Hello;
 import nl.co.gram.cabalee.MsgType;
-import nl.co.gram.cabalee.Transport;
 
 public class CommCenter extends ConnectionLifecycleCallback {
     private static final Logger logger = Logger.getLogger("cabalee.center");
@@ -47,20 +45,24 @@ public class CommCenter extends ConnectionLifecycleCallback {
         return new ArrayList<>(commsByRemote.values());
     }
 
-    public synchronized void sendToAll(@NonNull Object proto, String except) {
-        logger.info("sending to all: " + proto.getClass());
+    public synchronized void sendToAll(ByteString payload, String except) {
+        logger.info("sending to all");
         for (Map.Entry<String, Comm> entry : commsByRemote.entrySet()) {
             if (except != null && except.equals(entry.getKey())) {
                 continue;
             }
-            entry.getValue().sendProto(proto);
+            entry.getValue().sendPayload(payload);
         }
     }
 
-    public void broadcastTransport(Transport t, String from) {
-        if (!recentMessageIDs.checkAndAdd(Util.transportID(t))) {
-            sendToAll(t, from);
+    private static final byte[] TRANSPORT_PREFIX = {MsgType.CABAL_MESSAGE_V1_VALUE};
+    public boolean broadcastTransport(ByteString t, String from) {
+        if (recentMessageIDs.checkAndAdd(Util.transportID(t))) {
+            return false;
         }
+        ByteString payload = ByteString.copyFrom(TRANSPORT_PREFIX).concat(t);
+        sendToAll(payload, from);
+        return true;
     }
 
     private synchronized Comm commFor(String remote) {
@@ -116,23 +118,9 @@ public class CommCenter extends ConnectionLifecycleCallback {
         connectionsClient.disconnectFromEndpoint(remote);
     }
 
-    void sendProto(@NonNull Object o, String remote) {
-        logger.info("Sending " + o.getClass() + " to " + this);
-        ByteArrayOutputStream buf = new ByteArrayOutputStream();
-        try {
-            if (o instanceof Hello) {
-                buf.write(MsgType.HELLO_VALUE);
-                ((Hello) o).writeTo(buf);
-            } else if (o instanceof Transport) {
-                buf.write(MsgType.TRANSPORT_VALUE);
-                ((Transport) o).writeTo(buf);
-            } else {
-                throw new RuntimeException("unsupported object to send: " + o.getClass());
-            }
-        } catch (IOException e) {
-            throw new RuntimeException("writing to byte array failed", e);
-        }
-        connectionsClient.sendPayload(remote, Payload.fromBytes(buf.toByteArray()));
+    void sendPayload(ByteString bs, String remote) {
+        logger.info("Sending to " + this);
+        connectionsClient.sendPayload(remote, Payload.fromBytes(bs.toByteArray()));
     }
 
     @Override
@@ -169,8 +157,10 @@ public class CommCenter extends ConnectionLifecycleCallback {
         commFor(s).setState(Comm.State.DISCONNECTED);
     }
 
-    public void handleTransport(String remote, Transport t) {
-        broadcastTransport(t, remote);
+    public void handleTransport(String remote, ByteString t) {
+        if (!broadcastTransport(t, remote)) {
+            return;
+        }
         Collection<ReceivingHandler> rhs;
         synchronized (this) {
             rhs = new ArrayList<ReceivingHandler>(messageHandlers.values());

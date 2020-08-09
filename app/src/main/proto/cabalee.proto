@@ -6,18 +6,9 @@ option java_multiple_files = true;
 
 import "google/protobuf/timestamp.proto";
 
-message Hello {
-  fixed64 id = 1;
-}
-
 enum MsgType {
   UNKNOWN_MSGTYPE = 0;
-  HELLO = 1;
-  TRANSPORT = 2;
-}
-
-message Transport {
-  bytes payload = 1;  // marshalled, encrypted Payload object
+  CABAL_MESSAGE_V1 = 3;
 }
 
 message Payload {

@@ -26,10 +26,7 @@ import com.google.android.gms.nearby.connection.DiscoveryOptions;
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
 import com.google.android.gms.nearby.connection.Strategy;
 
-import java.util.Collections;
 import java.util.logging.Logger;
-
-import nl.co.gram.cabalee.Hello;
 
 public class CommService extends Service {
     private static final Logger logger = Logger.getLogger("cabalee.commservice");
