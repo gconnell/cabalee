@@ -9,6 +9,7 @@ import "google/protobuf/timestamp.proto";
 enum MsgType {
   UNKNOWN_MSGTYPE = 0;
   CABAL_MESSAGE_V1 = 3;
+  KEEPALIVE_MESSAGE_V1 = 4;
 }
 
 message Payload {

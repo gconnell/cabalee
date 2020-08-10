@@ -27,6 +27,9 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AnimationSet;
+import android.view.animation.ScaleAnimation;
+import android.view.animation.TranslateAnimation;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -47,7 +50,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.protobuf.ByteString;
 
-import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -140,6 +142,14 @@ public class NetworkActivity extends AppCompatActivity {
             }
         });
 
+        ImageView avatar = findViewById(R.id.avatar);
+        avatar.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                clickAvatar();
+            }
+        });
+
         b3.setBackground(new BitmapDrawable(getResources(), Util.identicon(networkId)));
 
         intentFilter = new IntentFilter();
@@ -159,6 +169,26 @@ public class NetworkActivity extends AppCompatActivity {
                 }
             }
         };
+    }
+
+    private void clickAvatar() {
+        ImageView avatar = findViewById(R.id.avatar);
+        int w = getWindow().getDecorView().getWidth();
+        int h = getWindow().getDecorView().getHeight();
+        int min = w < h ? w : h;
+        float topLeftX = (w - min) / 2F;
+        float topLeftY = (h - min) / 2F;
+        float currX = avatar.getX();
+        float currY = avatar.getY();
+        float currW = avatar.getWidth();
+        float currH = avatar.getHeight();
+        AnimationSet as = new AnimationSet(true);
+        as.addAnimation(new TranslateAnimation(
+                TranslateAnimation.RELATIVE_TO_SELF, 0, TranslateAnimation.ABSOLUTE, 0,
+                TranslateAnimation.RELATIVE_TO_SELF, 0, TranslateAnimation.ABSOLUTE, 0));
+        as.addAnimation(new ScaleAnimation(1, min / currW, 1, min / currH));
+        as.setDuration(1_000);
+        avatar.startAnimation(as);
     }
 
     private void sendText() {
@@ -339,12 +369,14 @@ public class NetworkActivity extends AppCompatActivity {
                     break;
                 }
                 case SELF_DESTRUCT: {
+                    frameLayout.setBackgroundColor(getResources().getColor(R.color.destroyColor));
                     textView.setBackgroundColor(getResources().getColor(R.color.destroyColor));
+                    textView.setTextColor(getResources().getColor(R.color.destroyText));
                     Spannable s = new SpannableString(getResources().getString(R.string.self_destruct));
                     s.setSpan(new StyleSpan(Typeface.BOLD), 0, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     textView.setText(s);
                     textView.append(payload.getSelfDestruct().getText());
-                    identicon.setImageDrawable(getDrawable(R.drawable.ic_baseline_delete_forever_24));
+                    identicon.setImageDrawable(getDrawable(R.drawable.ic_baseline_cancel_24));
                     break;
                 }
             }

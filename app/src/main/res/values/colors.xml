@@ -5,5 +5,6 @@
     <color name="colorAccent">#66cc66</color>
     <color name="chatBackground">#eee</color>
     <color name="cabalBackground">#fff</color>
-    <color name="destroyColor">#a00</color>
+    <color name="destroyColor">#800</color>
+    <color name="destroyText">#fff</color>
 </resources>

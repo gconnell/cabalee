@@ -25,9 +25,12 @@ import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
 import com.google.android.gms.nearby.connection.DiscoveryOptions;
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
 import com.google.android.gms.nearby.connection.Strategy;
+import com.google.protobuf.ByteString;
 
 import java.util.Base64;
 import java.util.logging.Logger;
+
+import nl.co.gram.cabalee.MsgType;
 
 public class CommService extends Service {
     private static final Logger logger = Logger.getLogger("cabalee.commservice");
@@ -45,6 +48,15 @@ public class CommService extends Service {
     private IntentFilter intentFilter = null;
     private BroadcastReceiver broadcastReceiver = null;
     private Handler handler = null;
+    private static final ByteString keepAliveMessage = ByteString.copyFrom(new byte[]{MsgType.KEEPALIVE_MESSAGE_V1_VALUE});
+    private final Runnable keepAliveRunnable = new Runnable() {
+        @Override
+        public void run() {
+            logger.info("Sending keepalives");
+            commCenter.sendToAll(keepAliveMessage, null);
+            handler.postDelayed(this, KEEP_ALIVE_MILLIS);
+        }
+    };
 
     IBinder iBinder = new Binder();
 
@@ -120,6 +132,7 @@ public class CommService extends Service {
         commCenter = new CommCenter(connectionsClient, this);
         startAdvertising();
         startDiscovery();
+        handler.post(keepAliveRunnable);
     }
 
     private Notification notification(int activeComms) {
@@ -160,6 +173,7 @@ public class CommService extends Service {
     public void onDestroy() {
         super.onDestroy();
         logger.severe("Stopping CommService");
+        handler.removeCallbacks(keepAliveRunnable);
         connectionsClient.stopAdvertising();
         connectionsClient.stopDiscovery();
         connectionsClient.stopAllEndpoints();

@@ -8,6 +8,7 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.protobuf.ByteString;
 
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import nl.co.gram.cabalee.MsgType;
@@ -67,6 +68,10 @@ public class Comm extends PayloadCallback {
                 commCenter.handleTransport(remote, bs.substring(1));
                 break;
             }
+            case MsgType.KEEPALIVE_MESSAGE_V1_VALUE: {
+                logger.info("Received (ignoring) keepalive");
+                break;
+            }
             default:
                 throw new IOException("unsupported type " + bs.byteAt(0));
         }
@@ -84,7 +89,7 @@ public class Comm extends PayloadCallback {
 
     @Override
     public void onPayloadReceived(@NonNull String s, @NonNull Payload payload) {
-        logger.info("onPayloadReceived from " + s);
+        logger.fine("onPayloadReceived from " + s);
         try {
             handlePayload(payload);
         } catch (IOException e) {
@@ -95,8 +100,12 @@ public class Comm extends PayloadCallback {
 
     @Override
     public void onPayloadTransferUpdate(@NonNull String s, @NonNull PayloadTransferUpdate payloadTransferUpdate) {
-        logger.info("onPayloadTransferUpdate " + s + " = " +
+        Level level = Level.FINE;
+        if (payloadTransferUpdate.getStatus() != PayloadTransferUpdate.Status.SUCCESS) {
+            level = Level.WARNING;
+        }
+        logger.log(level, "onPayloadTransferUpdate " + s + " = " +
                 payloadTransferUpdate.getPayloadId() + ": " + payloadTransferUpdate.getStatus() +
-                " (bytes=" + payloadTransferUpdate.getBytesTransferred() + ", total=" + payloadTransferUpdate.getTotalBytes());
+                " (bytes=" + payloadTransferUpdate.getBytesTransferred() + ", total=" + payloadTransferUpdate.getTotalBytes() + ")");
     }
 }
