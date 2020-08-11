@@ -392,9 +392,9 @@ public class NetworkActivity extends AppCompatActivity {
                     textView.setText(s);
                     textView.append(payload.getSelfDestruct().getText());
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        identicon.setImageDrawable(getDrawable(R.drawable.ic_baseline_cancel_24));
+                        identicon.setImageDrawable(getDrawable(R.drawable.ic_baseline_whatshot_24));
                     } else {
-                        identicon.setImageDrawable(getResources().getDrawable(R.drawable.ic_baseline_cancel_24));
+                        identicon.setImageDrawable(getResources().getDrawable(R.drawable.ic_baseline_whatshot_24));
                     }
                     break;
                 }
