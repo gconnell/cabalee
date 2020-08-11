@@ -269,7 +269,7 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                     != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
             }
         }
     }
@@ -319,13 +319,19 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 Intent intent = new Intent(MainActivity.this, NetworkActivity.class);
                 intent.putExtra(Intents.EXTRA_NETWORK_ID, rh.id().toByteArray());
-                ActivityOptions options;
-                if (myImage != null) {
-                    options = ActivityOptions.makeSceneTransitionAnimation(MainActivity.this, myImage, "cabal");
-                } else {
-                    options = ActivityOptions.makeSceneTransitionAnimation(MainActivity.this);
+                ActivityOptions options = null;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    if (myImage != null) {
+                        options = ActivityOptions.makeSceneTransitionAnimation(MainActivity.this, myImage, "cabal");
+                    } else {
+                        options = ActivityOptions.makeSceneTransitionAnimation(MainActivity.this);
+                    }
                 }
-                startActivity(intent, options.toBundle());
+                if (options != null) {
+                    startActivity(intent, options.toBundle());
+                } else {
+                    startActivity(intent);
+                }
             }
         });
     }

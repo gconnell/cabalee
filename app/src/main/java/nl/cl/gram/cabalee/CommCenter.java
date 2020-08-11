@@ -44,6 +44,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
     private Map<ByteString, ReceivingHandler> messageHandlers = new HashMap<>();
     private IDSet recentMessageIDs = new IDSet(60_000_000_000L, 15);
     private final LocalBroadcastManager localBroadcastManager;
+    public static final ByteString KEEP_ALIVE_MESSAGE = ByteString.copyFrom(new byte[]{MsgType.KEEPALIVE_MESSAGE_V1_VALUE});
 
     CommCenter(ConnectionsClient connectionsClient, CommService svc) {
         this.connectionsClient = connectionsClient;
@@ -110,6 +111,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
     synchronized void recheckState(Comm c) {
         switch (c.state()) {
             case CONNECTED:
+                sendPayload(KEEP_ALIVE_MESSAGE, c.remote());
                 break;
             case DISCONNECTING:
                 disconnect(c.remote());

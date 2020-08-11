@@ -39,12 +39,8 @@ import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
 import com.google.android.gms.nearby.connection.DiscoveryOptions;
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
 import com.google.android.gms.nearby.connection.Strategy;
-import com.google.protobuf.ByteString;
 
-import java.util.Base64;
 import java.util.logging.Logger;
-
-import nl.co.gram.cabalee.MsgType;
 
 public class CommService extends Service {
     private static final Logger logger = Logger.getLogger("cabalee.commservice");
@@ -62,12 +58,11 @@ public class CommService extends Service {
     private IntentFilter intentFilter = null;
     private BroadcastReceiver broadcastReceiver = null;
     private Handler handler = null;
-    private static final ByteString keepAliveMessage = ByteString.copyFrom(new byte[]{MsgType.KEEPALIVE_MESSAGE_V1_VALUE});
     private final Runnable keepAliveRunnable = new Runnable() {
         @Override
         public void run() {
             logger.info("Sending keepalives");
-            commCenter.sendToAll(keepAliveMessage, null);
+            commCenter.sendToAll(CommCenter.KEEP_ALIVE_MESSAGE, null);
             handler.postDelayed(this, KEEP_ALIVE_MILLIS);
         }
     };

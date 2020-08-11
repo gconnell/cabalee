@@ -26,6 +26,7 @@ import android.graphics.Bitmap;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -160,7 +161,7 @@ public class NetworkActivity extends AppCompatActivity {
         avatar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                clickAvatar();
+                // clickAvatar();
             }
         });
 
@@ -390,7 +391,11 @@ public class NetworkActivity extends AppCompatActivity {
                     s.setSpan(new StyleSpan(Typeface.BOLD), 0, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     textView.setText(s);
                     textView.append(payload.getSelfDestruct().getText());
-                    identicon.setImageDrawable(getDrawable(R.drawable.ic_baseline_cancel_24));
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        identicon.setImageDrawable(getDrawable(R.drawable.ic_baseline_cancel_24));
+                    } else {
+                        identicon.setImageDrawable(getResources().getDrawable(R.drawable.ic_baseline_cancel_24));
+                    }
                     break;
                 }
             }
