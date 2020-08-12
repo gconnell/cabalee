@@ -78,17 +78,23 @@ public class WifiP2pCommCenter {
     private final Context context;
     private final CommCenter commCenter;
     private BroadcastReceiver loggingReceiver = null;
-    private Handler handler = new Handler();
+    private Handler handler = null;
+    private Socket clientSocket = null;
     private Runnable discoverWifiPeersRunnable = new Runnable() {
         @Override
         public void run() {
             discoverWifiPeers();
+            if (wifiP2pInfo != null && wifiP2pInfo.groupFormed && !wifiP2pInfo.isGroupOwner && clientSocket == null) {
+                connectSocketTo(wifiP2pInfo.groupOwnerAddress);
+            }
+            handler.postDelayed(this, 15_000);
         }
     };
     private WifiP2pManager wifiP2pManager = null;
     private ServerSocket serverSocket = null;
 
     private void connectTo(final WifiP2pDevice wifiP2pDevice) {
+        logger.info("requesting connect to " + wifiP2pDevice.deviceName);
         Long lastConnectMillis = lastConnectAttemptMillis.get(wifiP2pDevice.deviceAddress);
         Long currentMillis = SystemClock.elapsedRealtime();
         if (lastConnectMillis != null) {
@@ -140,28 +146,39 @@ public class WifiP2pCommCenter {
         loggingFilter.addAction(WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION);
         loggingReceiver = receiver();
         context.registerReceiver(loggingReceiver, loggingFilter);
+        handler = new Handler(context.getMainLooper());
         handler.post(discoverWifiPeersRunnable);
         startServer();
         logger.info("onCreate complete");
     }
 
     private void startServer() {
-        logger.info("Starting service on port " + PORT);
+        logger.severe("Starting service on port " + PORT);
         try {
             serverSocket = new ServerSocket(PORT);
             new Thread(new Runnable() {
                 @Override
                 public void run() {
                     while (true) {
+                        Socket socket;
                         try {
                             logger.info("accepting network connection");
-                            final Socket socket = serverSocket.accept();
-                            logger.info("received network socket");
-                            String name = "wifip2pServer:" + socket.toString();
-                            new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), name);
+                            socket = serverSocket.accept();
                         } catch (IOException e) {
                             logger.severe("failed ot accept connection, quitting server thread: " + e.getMessage());
                             return;
+                        }
+                        try {
+                            String name = "wifip2pServer:" + socket.toString();
+                            logger.severe("accepted network socket from client: " + name);
+                            new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), name);
+                        } catch (Throwable t) {
+                            logger.severe("failed to start SocketComm");
+                            try {
+                                socket.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
                 }
@@ -210,8 +227,8 @@ public class WifiP2pCommCenter {
                 } else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(action)) {
                     WifiP2pDeviceList wifiP2pDeviceList = (WifiP2pDeviceList) intent
                             .getParcelableExtra(WifiP2pManager.EXTRA_P2P_DEVICE_LIST);
-                    logger.info("Got " + wifiP2pDeviceList.getDeviceList().size() + " WifiP2P peers");
-                    if (wifiP2pInfo == null || !wifiP2pInfo.groupFormed || wifiP2pInfo.isGroupOwner) {
+                    logger.info("Got " + wifiP2pDeviceList.getDeviceList().size() + " WifiP2P peers: " + wifiP2pInfo);
+                    if (wifiP2pInfo == null || !wifiP2pInfo.groupFormed) {
                         for (WifiP2pDevice d : wifiP2pDeviceList.getDeviceList()) {
                             connectTo(d);
                         }
@@ -232,7 +249,6 @@ public class WifiP2pCommCenter {
                             logger.info("group formed, as owner: SERVER");
                         } else {
                             logger.info("group formed, nonowner: CLIENT");
-                            connectSocketTo(wifiP2pInfo.groupOwnerAddress);
                         }
                     }
                     WifiP2pGroup wifiP2pGroup = (WifiP2pGroup) intent
@@ -267,23 +283,24 @@ public class WifiP2pCommCenter {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                logger.info("connecting socket to " + groupOwnerAddress);
-                Socket socket;
+                logger.severe("connecting socket to " + groupOwnerAddress);
                 try {
-                    socket = new Socket(groupOwnerAddress, PORT);
+                    clientSocket = new Socket(groupOwnerAddress, PORT);
                 } catch (IOException e) {
                     logger.severe("Failed to connect to " + groupOwnerAddress + ": " + e.getMessage());
                     return;
                 }
                 try {
-                    new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), "wifip2pClient:" + groupOwnerAddress);
+                    logger.severe("Successfully created socket, wrapping in SocketComm");
+                    new SocketComm(commCenter, clientSocket.getInputStream(), clientSocket.getOutputStream(), "wifip2pClient:" + groupOwnerAddress);
                 } catch (Throwable t) {
                     logger.info("while handling socket to " + groupOwnerAddress + ": " + t.getMessage());
-                } finally {
                     try {
-                        socket.close();
+                        clientSocket.close();
                     } catch (IOException e) {
-                        logger.severe("failed to close socket");
+                        e.printStackTrace();
+                    } finally {
+                        clientSocket = null;
                     }
                 }
             }

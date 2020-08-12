@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 public class NearbyCommCenter extends ConnectionLifecycleCallback {
-    private static final Logger logger = Logger.getLogger("cabalee.center");
+    private static final Logger logger = Logger.getLogger("cabalee.nearby");
     private final CommCenter commCenter;
     private Map<String, NearbyComm> commsByRemote = new HashMap<>();
     private final ConnectionsClient connectionsClient;

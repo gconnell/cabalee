@@ -51,6 +51,7 @@ public class CommService extends Service {
     private IntentFilter intentFilter = null;
     private BroadcastReceiver broadcastReceiver = null;
     private Handler handler = null;
+    private WifiP2pCommCenter wifiP2pCommCenter = null;
     private final Runnable keepAliveRunnable = new Runnable() {
         @Override
         public void run() {
@@ -135,6 +136,10 @@ public class CommService extends Service {
         nearbyCommCenter = new NearbyCommCenter(connectionsClient, commCenter);
         nearbyCommCenter.startAdvertising();
         nearbyCommCenter.startDiscovery();
+
+        wifiP2pCommCenter = new WifiP2pCommCenter(this, commCenter);
+        wifiP2pCommCenter.onCreate();
+
         handler.post(keepAliveRunnable);
     }
 
@@ -177,6 +182,7 @@ public class CommService extends Service {
         super.onDestroy();
         logger.severe("Stopping CommService");
         handler.removeCallbacks(keepAliveRunnable);
+        wifiP2pCommCenter.onDestroy();
         connectionsClient.stopAdvertising();
         connectionsClient.stopDiscovery();
         connectionsClient.stopAllEndpoints();

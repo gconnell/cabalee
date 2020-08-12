@@ -20,6 +20,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.protobuf.ByteString;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -106,7 +107,26 @@ public class CommCenter {
         return rh;
     }
 
-    public void handleTransport(String remote, ByteString t) {
+    public void handlePayloadBytes(String from, ByteString bs) {
+        if (bs.size() < 1) {
+           logger.severe("payload is too small");
+        }
+        switch (bs.byteAt(0)) {
+            case MsgType.CABAL_MESSAGE_V1_VALUE: {
+                logger.info("Transport");
+                handleTransport(from, bs.substring(1));
+                break;
+            }
+            case MsgType.KEEPALIVE_MESSAGE_V1_VALUE: {
+                logger.info("Received (ignoring) keepalive");
+                break;
+            }
+            default:
+                logger.severe("unsupported type " + bs.byteAt(0));
+        }
+    }
+
+    private void handleTransport(String remote, ByteString t) {
         if (!broadcastTransport(t, remote)) {
             return;
         }

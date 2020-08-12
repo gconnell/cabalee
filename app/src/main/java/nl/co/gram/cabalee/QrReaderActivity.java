@@ -59,7 +59,7 @@ public class QrReaderActivity extends AppCompatActivity implements ZXingScannerV
     public void handleResult(Result rawResult) {
         // Do something with the result here
         // Prints scan results
-        logger.info("result: " + rawResult.getText());
+        logger.info("got QR result");
         // Prints the scan format (qrcode, pdf417 etc.)
         logger.info("format: " + rawResult.getBarcodeFormat().toString());
         //If you would like to resume scanning, call this method below:

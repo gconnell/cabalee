@@ -26,7 +26,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class NearbyComm extends PayloadCallback implements Comm {
-    private static final Logger logger = Logger.getLogger("cabalee.comm");
+    private static final Logger logger = Logger.getLogger("cabalee.nearbycomm");
     private final String remote;
     private State state = State.STARTING;
     private final NearbyCommCenter commCenter;
@@ -66,29 +66,12 @@ public class NearbyComm extends PayloadCallback implements Comm {
         commCenter.sendPayload(payload, remote);
     }
 
-    private void handlePayloadBytes(ByteString bs) throws IOException {
-        if (bs.size() < 1) {
-            throw new IOException("payload is too small");
-        }
-        switch (bs.byteAt(0)) {
-            case MsgType.CABAL_MESSAGE_V1_VALUE: {
-                logger.info("Transport");
-                commCenter.commCenter().handleTransport(name(), bs.substring(1));
-                break;
-            }
-            case MsgType.KEEPALIVE_MESSAGE_V1_VALUE: {
-                logger.info("Received (ignoring) keepalive");
-                break;
-            }
-            default:
-                throw new IOException("unsupported type " + bs.byteAt(0));
-        }
-    }
+
 
     private void handlePayload(@NonNull Payload payload) throws IOException {
         switch (payload.getType()) {
             case Payload.Type.BYTES:
-                handlePayloadBytes(ByteString.copyFrom(payload.asBytes()));
+                commCenter.commCenter().handlePayloadBytes(name(), ByteString.copyFrom(payload.asBytes()));
                 break;
             default:
                 logger.info("unexpected payload type " + payload.getType() + " ignored");

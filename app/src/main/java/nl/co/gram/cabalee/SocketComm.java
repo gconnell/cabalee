@@ -27,14 +27,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 public class SocketComm implements Comm {
-    private static final Logger logger = Logger.getLogger("peerage.comm");
+    private static final Logger logger = Logger.getLogger("cabalee.socketcomm");
     private static final ByteString PREAMBLE = ByteString.copyFrom("Cabalee1", StandardCharsets.UTF_8);
     final AtomicBoolean initiatedSuccessfully = new AtomicBoolean(true);
     final CountDownLatch initiated = new CountDownLatch(2);
     final CountDownLatch completedRecv = new CountDownLatch(1);
     final CountDownLatch completedSend = new CountDownLatch(1);
     final CountDownLatch closed = new CountDownLatch(1);
-    private static final int MAX_MESSAGE_SIZE = 32 << 1024;  // 32K
+    private static final int MAX_MESSAGE_SIZE = 32 * 1024;  // 32K
     private final InputStream is;
     private final OutputStream os;
     private final byte[] inputBuf = new byte[1024];
@@ -60,34 +60,26 @@ public class SocketComm implements Comm {
     // returns null if there are no more messages
     private ByteString readPayload() throws IOException, CommException {
         logger.info("reading message");
-        synchronized (is) {
-            long length = 0;
-            // Read in LITTLE ENDIAN size, in 4 bytes
-            for (int i = 0; i < 4; i++) {
-                length = (length >> 8) | (is.read() << 24);
-            }
-            if (length > MAX_MESSAGE_SIZE) {
-                throw new CommException("received too-long length " + length);
-            }
-            // TODO: figure out how to read directly into ByteString(.Output)
-            ByteString.Output bs = ByteString.newOutput((int) length);
-            fillBuffer(is, bs, (int) length);
-            logger.info("read message successfully");
-            return bs.toByteString();
+        long length = Util.Uint32.readLittleEndianFrom(is);
+        if (length > MAX_MESSAGE_SIZE || length < 0) {
+            throw new CommException("received invalid length " + length);
         }
+        logger.info("Receiving " + length);
+        // TODO: figure out how to read directly into ByteString(.Output)
+        ByteString.Output bso = ByteString.newOutput((int) length);
+        fillBuffer(is, bso, (int) length);
+        logger.info("read message successfully");
+        ByteString bs = bso.toByteString();
+        return bs;
     }
 
     private void writePayload(ByteString bs) throws IOException, CommException {
-        logger.info("writing message");
+        logger.info("writing message size " + bs.size());
         synchronized (os) {
-            int length = bs.size();
-            if (length > MAX_MESSAGE_SIZE) {
-                throw new CommException("message too big, cowardly refusal to write");
+            if (bs.size() > MAX_MESSAGE_SIZE) {
+                throw new CommException("message too big (" + bs.size() + "), cowardly refusal to write");
             }
-            for (int i = 0; i < 4; i++) {
-                os.write(length & 0xFF);
-                length >>= 8;
-            }
+            Util.Uint32.writeLittleEndianTo(bs.size(), os);
             bs.writeTo(os);
         }
         logger.info("wrote message successfully");
@@ -154,7 +146,7 @@ public class SocketComm implements Comm {
                 }
                 completedSend.countDown();
                 try {
-                    logger.info("closing output stream");
+                    logger.severe("closing output stream");
                     os.close();
                 } catch (Throwable e) {
                     logger.severe("completing output stream: " + e.getMessage());
@@ -181,6 +173,7 @@ public class SocketComm implements Comm {
                     initiatedSuccessfully.set(false);
                 } catch (Throwable e) {
                     logger.severe("receiving: " + e.getMessage());
+                    e.printStackTrace();
                     initiatedSuccessfully.set(false);
                 }
                 logger.info("recv initiated");
@@ -192,17 +185,18 @@ public class SocketComm implements Comm {
                     try {
                         while (!done()) {
                             ByteString received = readPayload();
-                            commCenter.handleTransport(name(), received);
+                            commCenter.handlePayloadBytes(name(), received);
                         }
                     } catch (IOException e) {
                         logger.info("got IOException from msg read, closing successfully: " + e.getMessage());
                     } catch (Throwable e) {
-                        logger.severe("completing output stream: " + e.getMessage());
+                        logger.severe("reading payload: " + e.getMessage());
+                        e.printStackTrace();
                     }
                 }
                 completedRecv.countDown();
                 try {
-                    logger.info("Closing input stream");
+                    logger.severe("Closing input stream");
                     is.close();
                 } catch (Throwable t) {
                     logger.severe("Closing input stream failed: " + t.getMessage());
@@ -212,11 +206,16 @@ public class SocketComm implements Comm {
     }
 
     private void fillBuffer(InputStream is, ByteString.Output bs, int length) throws IOException {
-        int bytesRead = 0;
-        while (bytesRead < length) {
-            int n = is.read(inputBuf);
-            bs.write(inputBuf, 0, n);
-            bytesRead += n;
+        synchronized (inputBuf) {
+            int bytesRead = 0;
+            while (bytesRead < length) {
+                int n = is.read(inputBuf);
+                if (n < 0) {
+                    throw new IOException("end of input stream");
+                }
+                bs.write(inputBuf, 0, n);
+                bytesRead += n;
+            }
         }
     }
 }

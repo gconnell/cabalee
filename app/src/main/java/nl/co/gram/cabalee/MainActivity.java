@@ -196,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
                                     int resultCode,
                                     Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        logger.info("Request: " + requestCode + ", result: " + (resultCode == RESULT_OK) + " intent: " + data);
+        logger.info("Request: " + requestCode + ", result: " + (resultCode == RESULT_OK));
         if (requestCode == QR_REQUEST_CODE && resultCode == RESULT_OK) {
             handleCabaleeUrl(data);
         }
