@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nl.cl.gram.cabalee;
+package nl.co.gram.cabalee;
 
 public class Intents {
     public static final String EXTRA_NETWORK_ID = "nl.co.gram.cabalee.ExtraNetworkId";

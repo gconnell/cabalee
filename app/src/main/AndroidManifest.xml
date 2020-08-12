@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="nl.cl.gram.cabalee">
+    package="nl.co.gram.cabalee">
 
     <application
         android:allowBackup="true"
@@ -9,7 +9,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name="nl.cl.gram.cabalee.MainActivity">
+        <activity android:name="nl.co.gram.cabalee.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -28,18 +28,18 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="nl.cl.gram.cabalee.QrReaderActivity"
+            android:name="nl.co.gram.cabalee.QrReaderActivity"
             android:label="QR Code Reader">
         </activity>
         <activity
-            android:name="nl.cl.gram.cabalee.QrShowerActivity"
+            android:name="nl.co.gram.cabalee.QrShowerActivity"
             android:label="QR Code Shower">
         </activity>
         <activity
-            android:name="nl.cl.gram.cabalee.NetworkActivity"
+            android:name="nl.co.gram.cabalee.NetworkActivity"
             android:label="Network Activity">
         </activity>
-        <service android:name="nl.cl.gram.cabalee.CommService" />
+        <service android:name="nl.co.gram.cabalee.CommService" />
     </application>
 
     <!-- Required for Nearby Connections -->

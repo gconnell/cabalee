@@ -1,4 +1,4 @@
-package nl.cl.gram.cabalee;
+package nl.co.gram.cabalee;
 
 import com.google.protobuf.ByteString;
 

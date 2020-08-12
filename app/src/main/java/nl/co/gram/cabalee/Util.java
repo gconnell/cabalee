@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nl.cl.gram.cabalee;
+package nl.co.gram.cabalee;
 
 import android.graphics.Bitmap;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.util.Base64;
 
 import com.google.protobuf.ByteString;
@@ -26,6 +27,7 @@ import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.logging.Logger;
 
 public class Util {
     private static final char CHAR_0 = 0x30;

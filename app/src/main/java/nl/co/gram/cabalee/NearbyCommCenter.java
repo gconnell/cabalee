@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nl.cl.gram.cabalee;
-
-import android.content.Intent;
+package nl.co.gram.cabalee;
 
 import androidx.annotation.NonNull;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.nearby.connection.AdvertisingOptions;
 import com.google.android.gms.nearby.connection.ConnectionInfo;
@@ -32,14 +29,9 @@ import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.Strategy;
 import com.google.protobuf.ByteString;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-
-import nl.co.gram.cabalee.MsgType;
 
 public class NearbyCommCenter extends ConnectionLifecycleCallback {
     private static final Logger logger = Logger.getLogger("cabalee.center");

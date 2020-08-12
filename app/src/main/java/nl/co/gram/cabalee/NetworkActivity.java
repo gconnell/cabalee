@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nl.cl.gram.cabalee;
+package nl.co.gram.cabalee;
 
-import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -33,7 +32,6 @@ import android.os.IBinder;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -67,10 +65,6 @@ import com.google.protobuf.ByteString;
 
 import java.util.List;
 import java.util.logging.Logger;
-
-import nl.co.gram.cabalee.MessageContents;
-import nl.co.gram.cabalee.Payload;
-import nl.co.gram.cabalee.SelfDestruct;
 
 public class NetworkActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("cabalee.netact");

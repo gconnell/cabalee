@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nl.cl.gram.cabalee;
+package nl.co.gram.cabalee;
 
 import android.content.Context;
 
@@ -32,9 +32,6 @@ import java.util.logging.Logger;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-
-import nl.co.gram.cabalee.MessageContents;
-import nl.co.gram.cabalee.Payload;
 
 import static org.junit.Assert.*;
 

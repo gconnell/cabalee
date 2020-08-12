@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nl.cl.gram.cabalee;
+package nl.co.gram.cabalee;
 
 import androidx.annotation.NonNull;
 
@@ -24,8 +24,6 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import nl.co.gram.cabalee.MsgType;
 
 public class NearbyComm extends PayloadCallback implements Comm {
     private static final Logger logger = Logger.getLogger("cabalee.comm");

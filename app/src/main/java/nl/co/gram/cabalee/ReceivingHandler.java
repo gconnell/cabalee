@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nl.cl.gram.cabalee;
+package nl.co.gram.cabalee;
 
 import android.content.Context;
 import android.content.Intent;
@@ -27,8 +27,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
-
-import nl.co.gram.cabalee.Payload;
 
 public class ReceivingHandler {
     private static final Logger logger = Logger.getLogger("cabalee.receiver");

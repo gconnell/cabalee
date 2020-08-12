@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package nl.cl.gram.cabalee;
+package nl.co.gram.cabalee;
 
 import android.content.Intent;
 
@@ -26,8 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-
-import nl.co.gram.cabalee.MsgType;
 
 public class CommCenter {
     private static final Logger logger = Logger.getLogger("cabalee.center");
@@ -48,11 +46,13 @@ public class CommCenter {
     }
 
     public synchronized void addComm(Comm comm) {
+        logger.info("Adding comm: " + comm.name());
         commsByName.put(comm.name(), comm);
         broadcastActive();
     }
 
     public synchronized void removeComm(Comm comm) {
+        logger.info("Removing comm: " + comm.name());
         commsByName.remove(comm.name());
         broadcastActive();
     }
