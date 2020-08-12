@@ -51,8 +51,7 @@ public class CommService extends Service {
     private static final long KEEP_ALIVE_MILLIS = 75 * 1_000;
     private ConnectionsClient connectionsClient = null;
     private CommCenter commCenter = null;
-    private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
-    private static final String SERVICE_ID = "nl.co.gram.cabalee";
+    private NearbyCommCenter nearbyCommCenter = null;
     private NotificationManager notificationManager = null;
     private LocalBroadcastManager localBroadcastManager = null;
     private IntentFilter intentFilter = null;
@@ -138,9 +137,10 @@ public class CommService extends Service {
         };
         localBroadcastManager.registerReceiver(broadcastReceiver, intentFilter);
         connectionsClient = Nearby.getConnectionsClient(this);
-        commCenter = new CommCenter(connectionsClient, this);
-        startAdvertising();
-        startDiscovery();
+        commCenter = new CommCenter(this);
+        nearbyCommCenter = new NearbyCommCenter(connectionsClient, commCenter);
+        nearbyCommCenter.startAdvertising();
+        nearbyCommCenter.startDiscovery();
         handler.post(keepAliveRunnable);
     }
 
@@ -190,56 +190,5 @@ public class CommService extends Service {
         localBroadcastManager.unregisterReceiver(broadcastReceiver);
     }
 
-    private void startDiscovery() {
-        DiscoveryOptions discoveryOptions =
-                new DiscoveryOptions.Builder().setStrategy(STRATEGY).build();
-        EndpointDiscoveryCallback callback = new EndpointDiscoveryCallback() {
-            @Override
-            public void onEndpointFound(@NonNull String s, @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
-                logger.info("onEndpointFound: " + s);
-                connectionsClient
-                        .requestConnection("cabalee", s, commCenter)
-                        .addOnSuccessListener(
-                                (Void unused) -> {
-                                    logger.info("requesting connection to " + s + " succeeded");
-                                })
-                        .addOnFailureListener(
-                                (Exception e) -> {
-                                    logger.info("requesting connection to " + s + " failed: " + e.getMessage());
-                                });
-            }
 
-            @Override
-            public void onEndpointLost(@NonNull String s) {
-                logger.info("onEndpointLost: " + s);
-            }
-        };
-        connectionsClient
-                .startDiscovery(SERVICE_ID, callback, discoveryOptions)
-                .addOnSuccessListener(
-                        (Void unused) -> {
-                            logger.info("Discovering started");
-                        })
-                .addOnFailureListener(
-                        (Exception e) -> {
-                            logger.severe("Discovering failed: " + e.getMessage());
-                            e.printStackTrace();
-                        });
-    }
-
-    private void startAdvertising() {
-        AdvertisingOptions advertisingOptions =
-                new AdvertisingOptions.Builder().setStrategy(STRATEGY).build();
-        connectionsClient
-                .startAdvertising("cabalee", SERVICE_ID, commCenter, advertisingOptions)
-                .addOnSuccessListener(
-                        (Void unused) -> {
-                            logger.info("Advertizing started");
-                        })
-                .addOnFailureListener(
-                        (Exception e) -> {
-                            logger.severe("Advertizing failed: " + e.getMessage());
-                            e.printStackTrace();
-                        });
-    }
 }

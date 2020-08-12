@@ -16,15 +16,8 @@ package nl.cl.gram.cabalee;
 
 import android.content.Intent;
 
-import androidx.annotation.NonNull;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import com.google.android.gms.nearby.connection.ConnectionInfo;
-import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
-import com.google.android.gms.nearby.connection.ConnectionResolution;
-import com.google.android.gms.nearby.connection.ConnectionsClient;
-import com.google.android.gms.nearby.connection.ConnectionsStatusCodes;
-import com.google.android.gms.nearby.connection.Payload;
 import com.google.protobuf.ByteString;
 
 import java.util.ArrayList;
@@ -36,29 +29,43 @@ import java.util.logging.Logger;
 
 import nl.co.gram.cabalee.MsgType;
 
-public class CommCenter extends ConnectionLifecycleCallback {
+public class CommCenter {
     private static final Logger logger = Logger.getLogger("cabalee.center");
     private final CommService commService;
-    private Map<String, Comm> commsByRemote = new HashMap<>();
-    private final ConnectionsClient connectionsClient;
+    private Map<String, Comm> commsByName = new HashMap<>();
     private Map<ByteString, ReceivingHandler> messageHandlers = new HashMap<>();
     private IDSet recentMessageIDs = new IDSet(60_000_000_000L, 15);
     private final LocalBroadcastManager localBroadcastManager;
     public static final ByteString KEEP_ALIVE_MESSAGE = ByteString.copyFrom(new byte[]{MsgType.KEEPALIVE_MESSAGE_V1_VALUE});
 
-    CommCenter(ConnectionsClient connectionsClient, CommService svc) {
-        this.connectionsClient = connectionsClient;
+    CommCenter(CommService svc) {
         this.commService = svc;
         localBroadcastManager = LocalBroadcastManager.getInstance(svc);
     }
 
     public synchronized Collection<Comm> activeComms() {
-        return new ArrayList<>(commsByRemote.values());
+        return new ArrayList<>(commsByName.values());
+    }
+
+    public synchronized void addComm(Comm comm) {
+        commsByName.put(comm.name(), comm);
+        broadcastActive();
+    }
+
+    public synchronized void removeComm(Comm comm) {
+        commsByName.remove(comm.name());
+        broadcastActive();
+    }
+
+    private void broadcastActive() {
+        Intent intent = new Intent(Intents.ACTIVE_CONNECTIONS_CHANGED);
+        intent.putExtra(Intents.EXTRA_ACTIVE_CONNECTIONS, commsByName.size());
+        localBroadcastManager.sendBroadcast(intent);
     }
 
     public synchronized void sendToAll(ByteString payload, String except) {
         logger.info("sending to all");
-        for (Map.Entry<String, Comm> entry : commsByRemote.entrySet()) {
+        for (Map.Entry<String, Comm> entry : commsByName.entrySet()) {
             if (except != null && except.equals(entry.getKey())) {
                 continue;
             }
@@ -76,15 +83,6 @@ public class CommCenter extends ConnectionLifecycleCallback {
         return true;
     }
 
-    private synchronized Comm commFor(String remote) {
-        Comm c = commsByRemote.get(remote);
-        if (c == null) {
-            c = new Comm(this, remote);
-            commsByRemote.put(remote, c);
-        }
-        return c;
-    }
-
     synchronized public List<ReceivingHandler> receivers() {
         return new ArrayList<>(messageHandlers.values());
     }
@@ -100,73 +98,12 @@ public class CommCenter extends ConnectionLifecycleCallback {
         } else {
             rh = new ReceivingHandler(key, this, commService);
         }
-        if (messageHandlers.containsKey(rh.id()) && messageHandlers.get(rh.id()) instanceof ReceivingHandler) {
-            rh = (ReceivingHandler) messageHandlers.get(rh.id());
+        if (messageHandlers.containsKey(rh.id())) {
+            rh = messageHandlers.get(rh.id());
         } else {
             messageHandlers.put(rh.id(), rh);
         }
         return rh;
-    }
-
-    synchronized void recheckState(Comm c) {
-        switch (c.state()) {
-            case CONNECTED:
-                sendPayload(KEEP_ALIVE_MESSAGE, c.remote());
-                break;
-            case DISCONNECTING:
-                disconnect(c.remote());
-                break;
-            case DISCONNECTED:
-                commsByRemote.remove(c.remote());
-                c.close();
-                break;
-        }
-        Intent intent = new Intent(Intents.ACTIVE_CONNECTIONS_CHANGED);
-        intent.putExtra(Intents.EXTRA_ACTIVE_CONNECTIONS, commsByRemote.size());
-        localBroadcastManager.sendBroadcast(intent);
-    }
-
-    private synchronized void disconnect(String remote) {
-        connectionsClient.disconnectFromEndpoint(remote);
-    }
-
-    void sendPayload(ByteString bs, String remote) {
-        logger.info("Sending to " + this);
-        connectionsClient.sendPayload(remote, Payload.fromBytes(bs.toByteArray()));
-    }
-
-    @Override
-    public void onConnectionInitiated(@NonNull String s, @NonNull ConnectionInfo connectionInfo) {
-        logger.info("onConnectionInitiated: " + s);
-        Comm c = commFor(s);
-        connectionsClient.acceptConnection(s, c);
-        c.setState(Comm.State.ACCEPTING);
-    }
-
-    @Override
-    public void onConnectionResult(@NonNull String s, @NonNull ConnectionResolution connectionResolution) {
-        logger.info("onConnectionResult: " + s);
-        Comm c = commFor(s);
-        switch (connectionResolution.getStatus().getStatusCode()) {
-            case ConnectionsStatusCodes.STATUS_OK:
-                logger.severe("connection " + s + " OK");
-                c.setState(Comm.State.CONNECTED);
-                break;
-            case ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED:
-                logger.info("connection " + s + " REJECTED");
-                c.setState(Comm.State.DISCONNECTED);
-                break;
-            case ConnectionsStatusCodes.STATUS_ERROR:
-                logger.info("connection " + s + "ERROR");
-                c.setState(Comm.State.DISCONNECTED);
-                break;
-        }
-    }
-
-    @Override
-    public void onDisconnected(@NonNull String s) {
-        logger.info("onDisconnected: " + s);
-        commFor(s).setState(Comm.State.DISCONNECTED);
     }
 
     public void handleTransport(String remote, ByteString t) {
@@ -175,7 +112,7 @@ public class CommCenter extends ConnectionLifecycleCallback {
         }
         Collection<ReceivingHandler> rhs;
         synchronized (this) {
-            rhs = new ArrayList<ReceivingHandler>(messageHandlers.values());
+            rhs = new ArrayList<>(messageHandlers.values());
         }
         for (ReceivingHandler rh : rhs) {
             if (rh.handleTransport(t)) {
