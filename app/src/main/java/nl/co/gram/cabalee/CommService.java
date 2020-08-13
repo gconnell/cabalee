@@ -33,6 +33,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.ConnectionsClient;
+import com.google.android.gms.nearby.connection.Strategy;
 
 import java.util.logging.Logger;
 
@@ -43,7 +44,6 @@ public class CommService extends Service {
     private static final String CHANNEL_ID = "comm";
     public static final String MESSAGE_CHANNEL_ID = "msgs";
     private static final long KEEP_ALIVE_MILLIS = 75 * 1_000;
-    private ConnectionsClient connectionsClient = null;
     private CommCenter commCenter = null;
     private NearbyCommCenter nearbyCommCenter = null;
     private NotificationManager notificationManager = null;
@@ -131,15 +131,11 @@ public class CommService extends Service {
             }
         };
         localBroadcastManager.registerReceiver(broadcastReceiver, intentFilter);
-        connectionsClient = Nearby.getConnectionsClient(this);
         commCenter = new CommCenter(this);
-        nearbyCommCenter = new NearbyCommCenter(connectionsClient, commCenter);
-        nearbyCommCenter.startAdvertising();
-        nearbyCommCenter.startDiscovery();
-
+        nearbyCommCenter = new NearbyCommCenter(this, commCenter, Strategy.P2P_CLUSTER);
+        nearbyCommCenter.onCreate();
         wifiP2pCommCenter = new WifiP2pCommCenter(this, commCenter);
         wifiP2pCommCenter.onCreate();
-
         handler.post(keepAliveRunnable);
     }
 
@@ -182,10 +178,8 @@ public class CommService extends Service {
         super.onDestroy();
         logger.severe("Stopping CommService");
         handler.removeCallbacks(keepAliveRunnable);
+        nearbyCommCenter.onDestroy();
         wifiP2pCommCenter.onDestroy();
-        connectionsClient.stopAdvertising();
-        connectionsClient.stopDiscovery();
-        connectionsClient.stopAllEndpoints();
         notificationManager.cancel(NOTIFICATION_ID);
         localBroadcastManager.unregisterReceiver(broadcastReceiver);
     }

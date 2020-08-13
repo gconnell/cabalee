@@ -14,8 +14,11 @@
 
 package nl.co.gram.cabalee;
 
+import android.content.Context;
+
 import androidx.annotation.NonNull;
 
+import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.AdvertisingOptions;
 import com.google.android.gms.nearby.connection.ConnectionInfo;
 import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
@@ -38,12 +41,13 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
     private final CommCenter commCenter;
     private Map<String, NearbyComm> commsByRemote = new HashMap<>();
     private final ConnectionsClient connectionsClient;
-    private static final Strategy STRATEGY = Strategy.P2P_CLUSTER;
+    private final Strategy strategy;
     private static final String SERVICE_ID = "nl.co.gram.cabalee";
 
-    NearbyCommCenter(ConnectionsClient connectionsClient, CommCenter cc) {
-        this.connectionsClient = connectionsClient;
+    NearbyCommCenter(Context context, CommCenter cc, Strategy strategy) {
         this.commCenter = cc;
+        this.strategy = strategy;
+        connectionsClient = Nearby.getConnectionsClient(context);
     }
 
     public CommCenter commCenter() { return commCenter; }
@@ -55,6 +59,17 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
             commsByRemote.put(remote, c);
         }
         return c;
+    }
+
+    public void onCreate() {
+        startAdvertising();
+        startDiscovery();
+    }
+
+    public void onDestroy() {
+        connectionsClient.stopAdvertising();
+        connectionsClient.stopDiscovery();
+        connectionsClient.stopAllEndpoints();
     }
 
     synchronized void recheckState(NearbyComm c) {
@@ -113,7 +128,7 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
 
     public void startDiscovery() {
         DiscoveryOptions discoveryOptions =
-                new DiscoveryOptions.Builder().setStrategy(STRATEGY).build();
+                new DiscoveryOptions.Builder().setStrategy(strategy).build();
         EndpointDiscoveryCallback callback = new EndpointDiscoveryCallback() {
             @Override
             public void onEndpointFound(@NonNull String s, @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
@@ -150,7 +165,7 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
 
     public void startAdvertising() {
         AdvertisingOptions advertisingOptions =
-                new AdvertisingOptions.Builder().setStrategy(STRATEGY).build();
+                new AdvertisingOptions.Builder().setStrategy(strategy).build();
         connectionsClient
                 .startAdvertising("cabalee", SERVICE_ID, this, advertisingOptions)
                 .addOnSuccessListener(
