@@ -23,6 +23,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -31,8 +32,6 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import com.google.android.gms.nearby.Nearby;
-import com.google.android.gms.nearby.connection.ConnectionsClient;
 import com.google.android.gms.nearby.connection.Strategy;
 
 import java.util.logging.Logger;
@@ -52,6 +51,8 @@ public class CommService extends Service {
     private BroadcastReceiver broadcastReceiver = null;
     private Handler handler = null;
     private WifiP2pCommCenter wifiP2pCommCenter = null;
+    private WifiAwareCommCenter wifiAwareCommCenter = null;
+
     private final Runnable keepAliveRunnable = new Runnable() {
         @Override
         public void run() {
@@ -62,6 +63,7 @@ public class CommService extends Service {
     };
 
     IBinder iBinder = new Binder();
+    private ServerPort serverPort = null;
 
     @Nullable
     @Override
@@ -134,8 +136,17 @@ public class CommService extends Service {
         commCenter = new CommCenter(this);
         nearbyCommCenter = new NearbyCommCenter(this, commCenter, Strategy.P2P_CLUSTER);
         nearbyCommCenter.onCreate();
-        wifiP2pCommCenter = new WifiP2pCommCenter(this, commCenter);
-        wifiP2pCommCenter.onCreate();
+
+        serverPort = new ServerPort(commCenter);
+        serverPort.start();
+        if (false && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)) {
+            wifiAwareCommCenter = new WifiAwareCommCenter(this, commCenter);
+            wifiAwareCommCenter.onCreate();
+        } else {
+            wifiP2pCommCenter = new WifiP2pCommCenter(this, commCenter);
+            wifiP2pCommCenter.onCreate();
+        }
+
         handler.post(keepAliveRunnable);
     }
 
@@ -178,10 +189,16 @@ public class CommService extends Service {
         super.onDestroy();
         logger.severe("Stopping CommService");
         handler.removeCallbacks(keepAliveRunnable);
-        nearbyCommCenter.onDestroy();
-        wifiP2pCommCenter.onDestroy();
+        if (nearbyCommCenter != null)
+            nearbyCommCenter.onDestroy();
+        if (wifiP2pCommCenter != null)
+            wifiP2pCommCenter.onDestroy();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && wifiAwareCommCenter != null)
+            wifiAwareCommCenter.onDestroy();
         notificationManager.cancel(NOTIFICATION_ID);
         localBroadcastManager.unregisterReceiver(broadcastReceiver);
+        if (serverPort != null)
+            serverPort.close();
     }
 
 

@@ -148,45 +148,7 @@ public class WifiP2pCommCenter {
         context.registerReceiver(loggingReceiver, loggingFilter);
         handler = new Handler(context.getMainLooper());
         handler.post(discoverWifiPeersRunnable);
-        startServer();
         logger.info("onCreate complete");
-    }
-
-    private void startServer() {
-        logger.severe("Starting service on port " + PORT);
-        try {
-            serverSocket = new ServerSocket(PORT);
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (true) {
-                        Socket socket;
-                        try {
-                            logger.info("accepting network connection");
-                            socket = serverSocket.accept();
-                        } catch (IOException e) {
-                            logger.severe("failed ot accept connection, quitting server thread: " + e.getMessage());
-                            return;
-                        }
-                        try {
-                            String name = "wifip2pServer:" + socket.toString();
-                            logger.severe("accepted network socket from client: " + name);
-                            new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), name);
-                        } catch (Throwable t) {
-                            logger.severe("failed to start SocketComm");
-                            try {
-                                socket.close();
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-            }).start();
-        } catch (IOException e) {
-            logger.severe("failed to start GRPC server: " + e.getMessage());
-            e.printStackTrace();
-        }
     }
 
     public void onDestroy() {

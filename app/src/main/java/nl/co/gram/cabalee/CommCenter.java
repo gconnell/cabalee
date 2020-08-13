@@ -59,6 +59,9 @@ public class CommCenter {
     }
 
     private void broadcastActive() {
+        for (String comm : commsByName.keySet()) {
+            logger.info("  - comm: " + comm);
+        }
         Intent intent = new Intent(Intents.ACTIVE_CONNECTIONS_CHANGED);
         intent.putExtra(Intents.EXTRA_ACTIVE_CONNECTIONS, commsByName.size());
         localBroadcastManager.sendBroadcast(intent);
