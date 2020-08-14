@@ -116,12 +116,12 @@ public class CommCenter {
         }
         switch (bs.byteAt(0)) {
             case MsgType.CABAL_MESSAGE_V1_VALUE: {
-                logger.info("Transport");
+                logger.info("Received transport of size " + bs.size() + " from " + from);
                 handleTransport(from, bs.substring(1));
                 break;
             }
             case MsgType.KEEPALIVE_MESSAGE_V1_VALUE: {
-                logger.info("Received (ignoring) keepalive");
+                logger.fine("Received (ignoring) keepalive");
                 break;
             }
             default:
@@ -131,6 +131,7 @@ public class CommCenter {
 
     private void handleTransport(String remote, ByteString t) {
         if (!broadcastTransport(t, remote)) {
+            logger.info("discarding duplicate transport");
             return;
         }
         Collection<ReceivingHandler> rhs;

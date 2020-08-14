@@ -42,7 +42,9 @@ import androidx.annotation.RequiresApi;
 
 import java.net.Inet6Address;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 @RequiresApi(api = Build.VERSION_CODES.Q)
@@ -56,6 +58,7 @@ public class WifiAwareCommCenter extends AttachCallback {
     private WifiAwareSession wifiAwareSession = null;
     private static final String SERVICE_NAME = "nl.co.gram.cabalee.WifiAwareService";
     private ConnectivityManager connectivityManager = null;
+    private Map<Inet6Address, SocketComm> commsByAddr = new HashMap<>();
 
     public WifiAwareCommCenter(Context context, CommCenter commCenter) {
         this.context = context;
@@ -111,6 +114,7 @@ public class WifiAwareCommCenter extends AttachCallback {
     public void onDestroy() {
         logger.info("onDestroy");
         shutDownWifiAware();
+        context.unregisterReceiver(broadcastReceiver);
     }
 
     @Override
@@ -132,6 +136,7 @@ public class WifiAwareCommCenter extends AttachCallback {
             @Override
             public void onMessageReceived(PeerHandle peerHandle, byte[] message) {
                 logger.info("onMessageReceived (@publisher)");
+                publishDiscoverySession.sendMessage(peerHandle, 1, new byte[1]);
                 connectToPeer(publishDiscoverySession, peerHandle, true);
             }
         }, handler);
@@ -150,11 +155,16 @@ public class WifiAwareCommCenter extends AttachCallback {
             }
 
             @Override
+            public void onMessageReceived(android.net.wifi.aware.PeerHandle peerHandle, byte[] message) {
+                logger.info("onMessageReceived (@subscriber)");
+                connectToPeer(subscribeDiscoverySession, peerHandle, false);
+            }
+
+            @Override
             public void onServiceDiscovered(PeerHandle peerHandle,
                                             byte[] serviceSpecificInfo, List<byte[]> matchFilter) {
                 logger.info("onServiceDiscovered");
-                subscribeDiscoverySession.sendMessage(peerHandle, 0, CommCenter.KEEP_ALIVE_MESSAGE.toByteArray());
-                connectToPeer(subscribeDiscoverySession, peerHandle, false);
+                subscribeDiscoverySession.sendMessage(peerHandle, 0, new byte[1]);
             }
         }, handler);
     }
@@ -177,7 +187,7 @@ public class WifiAwareCommCenter extends AttachCallback {
             WifiAwareNetworkSpecifier.Builder b = new WifiAwareNetworkSpecifier.Builder(session, peerHandle)
                     .setPskPassphrase("somePassword");
             if (isPublisher) {
-                b = b.setPort(22225);
+                b = b.setPort(ServerPort.PORT);
             }
             networkSpecifier = b.build();
         } else {
@@ -198,18 +208,28 @@ public class WifiAwareCommCenter extends AttachCallback {
             public void onCapabilitiesChanged(Network network, NetworkCapabilities networkCapabilities) {
                 super.onCapabilitiesChanged(network, networkCapabilities);
                 logger.info("onCapabilitiesChanged, publisher=" + isPublisher);
-                if (!isPublisher) {
-                    logger.severe("Attempting to create wifiAware socket");
-                    WifiAwareNetworkInfo peerAwareInfo = (WifiAwareNetworkInfo) networkCapabilities.getTransportInfo();
-                    Inet6Address peerIpv6 = peerAwareInfo.getPeerIpv6Addr();
-                    int peerPort = peerAwareInfo.getPort();
-                    try {
-                        Socket socket = network.getSocketFactory().createSocket(peerIpv6, peerPort);
-                        new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), "wifiaware:" + peerIpv6.getHostAddress());
-                    } catch (Throwable t) {
-                        logger.severe("Socket creation failed: " + t.getMessage());
-                        t.printStackTrace();
+                WifiAwareNetworkInfo peerAwareInfo = (WifiAwareNetworkInfo) networkCapabilities.getTransportInfo();
+                if (isPublisher || peerAwareInfo == null) {
+                    return;
+                }
+                Inet6Address peerIpv6 = peerAwareInfo.getPeerIpv6Addr();
+                synchronized (WifiAwareCommCenter.this) {
+                    SocketComm sc = commsByAddr.get(peerIpv6);
+                    if (sc != null && !sc.done()) {
+                        logger.info("Already have socket to " + peerIpv6);
+                        return;
                     }
+                }
+                logger.severe("Attempting to create wifiAware socket as client");
+                int peerPort = peerAwareInfo.getPort();
+                try {
+                    Socket socket = network.getSocketFactory().createSocket(peerIpv6, peerPort);
+                    synchronized (WifiAwareCommCenter.this) {
+                        commsByAddr.put(peerIpv6, new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), "wifiaware:" + peerIpv6.getHostAddress()));
+                    }
+                } catch (Throwable t) {
+                    logger.severe("Socket creation failed: " + t.getMessage());
+                    t.printStackTrace();
                 }
             }
 

@@ -56,7 +56,7 @@ public class CommService extends Service {
     private final Runnable keepAliveRunnable = new Runnable() {
         @Override
         public void run() {
-            logger.info("Sending keepalives");
+            logger.fine("Sending keepalives");
             commCenter.sendToAll(CommCenter.KEEP_ALIVE_MESSAGE, null);
             handler.postDelayed(this, KEEP_ALIVE_MILLIS);
         }
@@ -134,19 +134,19 @@ public class CommService extends Service {
         };
         localBroadcastManager.registerReceiver(broadcastReceiver, intentFilter);
         commCenter = new CommCenter(this);
+
         nearbyCommCenter = new NearbyCommCenter(this, commCenter, Strategy.P2P_CLUSTER);
         nearbyCommCenter.onCreate();
-/*
+
         serverPort = new ServerPort(commCenter);
         serverPort.start();
-        if (false && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)) {
             wifiAwareCommCenter = new WifiAwareCommCenter(this, commCenter);
             wifiAwareCommCenter.onCreate();
-        } else {
+        } /*else {
             wifiP2pCommCenter = new WifiP2pCommCenter(this, commCenter);
             wifiP2pCommCenter.onCreate();
-        }
-*/
+        } */
         handler.post(keepAliveRunnable);
     }
 

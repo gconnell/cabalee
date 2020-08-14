@@ -7,7 +7,7 @@ import java.util.logging.Logger;
 
 public class ServerPort extends Thread {
     private static final Logger logger = Logger.getLogger("cabalee.serverport");
-    private static final int PORT = 22225;
+    public static final int PORT = 22225;
     private final CommCenter commCenter;
     private ServerSocket serverSocket = null;
 

@@ -59,22 +59,22 @@ public class SocketComm implements Comm {
 
     // returns null if there are no more messages
     private ByteString readPayload() throws IOException, CommException {
-        logger.info("reading message");
+        logger.fine("reading message");
         long length = Util.Uint32.readLittleEndianFrom(is);
         if (length > MAX_MESSAGE_SIZE || length < 0) {
             throw new CommException("received invalid length " + length);
         }
-        logger.info("Receiving " + length);
+        logger.fine("Receiving " + length);
         // TODO: figure out how to read directly into ByteString(.Output)
         ByteString.Output bso = ByteString.newOutput((int) length);
         fillBuffer(is, bso, (int) length);
-        logger.info("read message successfully");
+        logger.fine("read message successfully");
         ByteString bs = bso.toByteString();
         return bs;
     }
 
     private void writePayload(ByteString bs) throws IOException, CommException {
-        logger.info("writing message size " + bs.size());
+        logger.fine("writing message size " + bs.size());
         synchronized (os) {
             if (bs.size() > MAX_MESSAGE_SIZE) {
                 throw new CommException("message too big (" + bs.size() + "), cowardly refusal to write");
@@ -82,7 +82,7 @@ public class SocketComm implements Comm {
             Util.Uint32.writeLittleEndianTo(bs.size(), os);
             bs.writeTo(os);
         }
-        logger.info("wrote message successfully");
+        logger.fine("wrote message successfully");
     }
 
     public SocketComm(CommCenter commCenter, InputStream is, OutputStream os, String name) {
