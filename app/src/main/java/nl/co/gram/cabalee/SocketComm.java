@@ -209,7 +209,7 @@ public class SocketComm implements Comm {
         synchronized (inputBuf) {
             int bytesRead = 0;
             while (bytesRead < length) {
-                int n = is.read(inputBuf);
+                int n = is.read(inputBuf, 0, length-bytesRead);
                 if (n < 0) {
                     throw new IOException("end of input stream");
                 }
