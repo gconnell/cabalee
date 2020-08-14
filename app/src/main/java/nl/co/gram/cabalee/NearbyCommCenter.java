@@ -45,9 +45,10 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
     private final ConnectionsClient connectionsClient;
     private final Strategy strategy;
     private static final String SERVICE_ID = "nl.co.gram.cabalee";
-    private final Random random = new Random();
+    private final Handler handler;
 
     NearbyCommCenter(Context context, CommCenter cc, Strategy strategy) {
+        this.handler = new Handler(context.getMainLooper());
         this.commCenter = cc;
         this.strategy = strategy;
         connectionsClient = Nearby.getConnectionsClient(context);
@@ -65,8 +66,8 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
     }
 
     public void onCreate() {
-        startAdvertising();
-        startDiscovery();
+        handler.post(startAdvertising);
+        handler.post(startDiscovery);
     }
 
     public void onDestroy() {
@@ -129,56 +130,64 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
         commFor(s).setState(NearbyComm.State.DISCONNECTED);
     }
 
-    public void startDiscovery() {
-        DiscoveryOptions discoveryOptions =
-                new DiscoveryOptions.Builder().setStrategy(strategy).build();
-        EndpointDiscoveryCallback callback = new EndpointDiscoveryCallback() {
-            @Override
-            public void onEndpointFound(@NonNull String s, @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
-                logger.info("onEndpointFound: " + s);
-                connectionsClient
-                        .requestConnection("cabalee", s, NearbyCommCenter.this)
-                        .addOnSuccessListener(
-                                (Void unused) -> {
-                                    logger.info("requesting connection to " + s + " succeeded");
-                                })
-                        .addOnFailureListener(
-                                (Exception e) -> {
-                                    logger.info("requesting connection to " + s + " failed: " + e.getMessage());
-                                });
-            }
+    private final Runnable startDiscovery = new Runnable() {
+        @Override
+        public void run() {
+            DiscoveryOptions discoveryOptions =
+                    new DiscoveryOptions.Builder().setStrategy(strategy).build();
+            EndpointDiscoveryCallback callback = new EndpointDiscoveryCallback() {
+                @Override
+                public void onEndpointFound(@NonNull String s, @NonNull DiscoveredEndpointInfo discoveredEndpointInfo) {
+                    logger.info("onEndpointFound: " + s);
+                    connectionsClient
+                            .requestConnection("cabalee", s, NearbyCommCenter.this)
+                            .addOnSuccessListener(
+                                    (Void unused) -> {
+                                        logger.info("requesting connection to " + s + " succeeded");
+                                    })
+                            .addOnFailureListener(
+                                    (Exception e) -> {
+                                        logger.info("requesting connection to " + s + " failed: " + e.getMessage());
+                                    });
+                }
 
-            @Override
-            public void onEndpointLost(@NonNull String s) {
-                logger.info("onEndpointLost: " + s);
-            }
-        };
-        connectionsClient
-                .startDiscovery(SERVICE_ID, callback, discoveryOptions)
-                .addOnSuccessListener(
-                        (Void unused) -> {
-                            logger.info("Discovering started");
-                        })
-                .addOnFailureListener(
-                        (Exception e) -> {
-                            logger.severe("Discovering failed: " + e.getMessage());
-                            e.printStackTrace();
-                        });
-    }
+                @Override
+                public void onEndpointLost(@NonNull String s) {
+                    logger.info("onEndpointLost: " + s);
+                }
+            };
+            connectionsClient
+                    .startDiscovery(SERVICE_ID, callback, discoveryOptions)
+                    .addOnSuccessListener(
+                            (Void unused) -> {
+                                logger.info("Discovering started");
+                            })
+                    .addOnFailureListener(
+                            (Exception e) -> {
+                                logger.severe("Discovering failed: " + e.getMessage());
+                                e.printStackTrace();
+                                handler.postDelayed(startDiscovery, 60_000);
+                            });
+        }
+    };
 
-    public void startAdvertising() {
-        AdvertisingOptions advertisingOptions =
-                new AdvertisingOptions.Builder().setStrategy(strategy).build();
-        connectionsClient
-                .startAdvertising("cabalee", SERVICE_ID, this, advertisingOptions)
-                .addOnSuccessListener(
-                        (Void unused) -> {
-                            logger.info("Advertizing started");
-                        })
-                .addOnFailureListener(
-                        (Exception e) -> {
-                            logger.severe("Advertizing failed: " + e.getMessage());
-                            e.printStackTrace();
-                        });
-    }
+    private final Runnable startAdvertising = new Runnable() {
+        @Override
+        public void run() {
+            AdvertisingOptions advertisingOptions =
+                    new AdvertisingOptions.Builder().setStrategy(strategy).build();
+            connectionsClient
+                    .startAdvertising("cabalee", SERVICE_ID, NearbyCommCenter.this, advertisingOptions)
+                    .addOnSuccessListener(
+                            (Void unused) -> {
+                                logger.info("Advertizing started");
+                            })
+                    .addOnFailureListener(
+                            (Exception e) -> {
+                                logger.severe("Advertizing failed: " + e.getMessage());
+                                e.printStackTrace();
+                                handler.postDelayed(startAdvertising, 60_000);
+                            });
+        }
+    };
 }
