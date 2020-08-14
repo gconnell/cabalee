@@ -34,8 +34,7 @@ public class IDSet {
     private static class IDs {
         final Set<ByteString> s = new HashSet<>();
         final long elapsedNanos;
-
-
+        
         private IDs(long elapsedNanos) {
             this.elapsedNanos = elapsedNanos;
         }

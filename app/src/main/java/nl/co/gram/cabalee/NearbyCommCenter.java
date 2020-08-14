@@ -15,6 +15,7 @@
 package nl.co.gram.cabalee;
 
 import android.content.Context;
+import android.os.Handler;
 
 import androidx.annotation.NonNull;
 
@@ -34,6 +35,7 @@ import com.google.protobuf.ByteString;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.logging.Logger;
 
 public class NearbyCommCenter extends ConnectionLifecycleCallback {
@@ -43,6 +45,7 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
     private final ConnectionsClient connectionsClient;
     private final Strategy strategy;
     private static final String SERVICE_ID = "nl.co.gram.cabalee";
+    private final Random random = new Random();
 
     NearbyCommCenter(Context context, CommCenter cc, Strategy strategy) {
         this.commCenter = cc;

@@ -136,7 +136,7 @@ public class CommService extends Service {
         commCenter = new CommCenter(this);
         nearbyCommCenter = new NearbyCommCenter(this, commCenter, Strategy.P2P_CLUSTER);
         nearbyCommCenter.onCreate();
-
+/*
         serverPort = new ServerPort(commCenter);
         serverPort.start();
         if (false && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)) {
@@ -146,7 +146,7 @@ public class CommService extends Service {
             wifiP2pCommCenter = new WifiP2pCommCenter(this, commCenter);
             wifiP2pCommCenter.onCreate();
         }
-
+*/
         handler.post(keepAliveRunnable);
     }
 

@@ -41,6 +41,7 @@ public class WifiP2pCommCenter {
     private static final int PORT = 22225;
     private static Logger logger = Logger.getLogger("cabalee.wifip2p");
     private WifiP2pInfo wifiP2pInfo = null;
+    private SocketComm socketComm = null;
 
     public WifiP2pCommCenter(Context context, CommCenter commCenter) {
         this.context = context;
@@ -84,7 +85,7 @@ public class WifiP2pCommCenter {
         @Override
         public void run() {
             discoverWifiPeers();
-            if (wifiP2pInfo != null && wifiP2pInfo.groupFormed && !wifiP2pInfo.isGroupOwner && clientSocket == null) {
+            if (wifiP2pInfo != null && wifiP2pInfo.groupFormed && !wifiP2pInfo.isGroupOwner && (socketComm == null || socketComm.done())) {
                 connectSocketTo(wifiP2pInfo.groupOwnerAddress);
             }
             handler.postDelayed(this, 15_000);
@@ -254,7 +255,7 @@ public class WifiP2pCommCenter {
                 }
                 try {
                     logger.severe("Successfully created socket, wrapping in SocketComm");
-                    new SocketComm(commCenter, clientSocket.getInputStream(), clientSocket.getOutputStream(), "wifip2pClient:" + groupOwnerAddress);
+                    socketComm = new SocketComm(commCenter, clientSocket.getInputStream(), clientSocket.getOutputStream(), "wifip2pClient:" + groupOwnerAddress);
                 } catch (Throwable t) {
                     logger.info("while handling socket to " + groupOwnerAddress + ": " + t.getMessage());
                     try {
