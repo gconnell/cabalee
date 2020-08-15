@@ -42,7 +42,7 @@ public class CommService extends Service {
     private static final String STOP_SERVICE = "SERVICE_KILL_THYSELF";
     private static final String CHANNEL_ID = "comm";
     public static final String MESSAGE_CHANNEL_ID = "msgs";
-    private static final long KEEP_ALIVE_MILLIS = 75 * 1_000;
+    public static final int KEEP_ALIVE_MILLIS = 70 * 1_000;
     private CommCenter commCenter = null;
     private NearbyCommCenter nearbyCommCenter = null;
     private NotificationManager notificationManager = null;
@@ -56,7 +56,7 @@ public class CommService extends Service {
     private final Runnable keepAliveRunnable = new Runnable() {
         @Override
         public void run() {
-            logger.fine("Sending keepalives");
+            logger.info("Sending keepalives");
             commCenter.sendToAll(CommCenter.KEEP_ALIVE_MESSAGE, null);
             handler.postDelayed(this, KEEP_ALIVE_MILLIS);
         }

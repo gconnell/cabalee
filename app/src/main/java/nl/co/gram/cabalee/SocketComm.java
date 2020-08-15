@@ -30,10 +30,8 @@ public class SocketComm implements Comm {
     private static final Logger logger = Logger.getLogger("cabalee.socketcomm");
     private static final ByteString PREAMBLE = ByteString.copyFrom("Cabalee1", StandardCharsets.UTF_8);
     final AtomicBoolean initiatedSuccessfully = new AtomicBoolean(true);
+    final AtomicBoolean closed = new AtomicBoolean(false);
     final CountDownLatch initiated = new CountDownLatch(2);
-    final CountDownLatch completedRecv = new CountDownLatch(1);
-    final CountDownLatch completedSend = new CountDownLatch(1);
-    final CountDownLatch closed = new CountDownLatch(1);
     private static final int MAX_MESSAGE_SIZE = 32 * 1024;  // 32K
     private final InputStream is;
     private final OutputStream os;
@@ -105,13 +103,24 @@ public class SocketComm implements Comm {
         }
     }
 
-    public void close() {
-        closed.countDown();
-        toSend.add(ByteString.EMPTY);
+    public synchronized void close() {
+        if (closed.getAndSet(true)) {
+            try {
+                this.is.close();
+            } catch (IOException e) {
+                logger.severe("closing input stream: " + e.getMessage());
+            }
+            try {
+                this.os.close();
+            } catch (IOException e) {
+                logger.severe("closing output stream: " + e.getMessage());
+            }
+            toSend.add(ByteString.EMPTY);
+        }
     }
 
-    public boolean done() {
-        return this.closed.getCount() == 0;
+    public boolean closed() {
+        return this.closed.get();
     }
 
     private Runnable sender() {
@@ -133,7 +142,7 @@ public class SocketComm implements Comm {
                 if (initiatedSuccessfully.get()) {
                     commCenter.addComm(SocketComm.this);
                     try {
-                        while (!done()) {
+                        while (!closed()) {
                             ByteString bs = toSend.takeFirst();
                             if (bs.size() > 0) {
                                 writePayload(bs);
@@ -141,16 +150,11 @@ public class SocketComm implements Comm {
                         }
                     } catch (Throwable t) {
                         logger.info("thrown while writing: " + t.getMessage());
+                    } finally {
+                        commCenter.removeComm(SocketComm.this);
                     }
-                    commCenter.removeComm(SocketComm.this);
                 }
-                completedSend.countDown();
-                try {
-                    logger.severe("closing output stream");
-                    os.close();
-                } catch (Throwable e) {
-                    logger.severe("completing output stream: " + e.getMessage());
-                }
+                close();
             }
         };
     }
@@ -183,7 +187,7 @@ public class SocketComm implements Comm {
                     logger.warning("recv init unsuccessful, bailing");
                 } else {
                     try {
-                        while (!done()) {
+                        while (!closed()) {
                             ByteString received = readPayload();
                             commCenter.handlePayloadBytes(name(), received);
                         }
@@ -194,13 +198,7 @@ public class SocketComm implements Comm {
                         e.printStackTrace();
                     }
                 }
-                completedRecv.countDown();
-                try {
-                    logger.severe("Closing input stream");
-                    is.close();
-                } catch (Throwable t) {
-                    logger.severe("Closing input stream failed: " + t.getMessage());
-                }
+                close();
             }
         };
     }

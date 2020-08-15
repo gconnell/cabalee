@@ -20,7 +20,6 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.protobuf.ByteString;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -121,7 +120,7 @@ public class CommCenter {
                 break;
             }
             case MsgType.KEEPALIVE_MESSAGE_V1_VALUE: {
-                logger.fine("Received (ignoring) keepalive");
+                logger.info("Received keepalive from " + from);
                 break;
             }
             default:

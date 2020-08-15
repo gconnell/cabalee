@@ -206,7 +206,7 @@ public class WifiP2pCommCenter {
                     wifiP2pInfo = (WifiP2pInfo) intent
                             .getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO);
                     logger.info("Connection to " + wifiP2pInfo);
-                    if (wifiP2pInfo != null && wifiP2pInfo.groupFormed && !wifiP2pInfo.isGroupOwner && (socketComm == null || socketComm.done())) {
+                    if (wifiP2pInfo != null && wifiP2pInfo.groupFormed && !wifiP2pInfo.isGroupOwner && (socketComm == null || socketComm.closed())) {
                         connectSocketTo(wifiP2pInfo.groupOwnerAddress);
                     }
                 } else if (WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION.equals(action)) {
@@ -245,6 +245,7 @@ public class WifiP2pCommCenter {
                 }
                 try {
                     logger.severe("Successfully created socket, wrapping in SocketComm");
+                    clientSocket.setSoTimeout(CommService.KEEP_ALIVE_MILLIS * 2);
                     socketComm = new SocketComm(commCenter, clientSocket.getInputStream(), clientSocket.getOutputStream(), "wifip2pClient:" + groupOwnerAddress);
                 } catch (Throwable t) {
                     logger.info("while handling socket to " + groupOwnerAddress + ": " + t.getMessage());

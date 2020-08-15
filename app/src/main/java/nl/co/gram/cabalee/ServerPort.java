@@ -36,6 +36,7 @@ public class ServerPort extends Thread {
             try {
                 String name = "serverport:" + socket.toString();
                 logger.severe("accepted network socket from client: " + name);
+                socket.setSoTimeout(CommService.KEEP_ALIVE_MILLIS * 2);
                 new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), name);
             } catch (Throwable t) {
                 logger.severe("failed to start SocketComm");

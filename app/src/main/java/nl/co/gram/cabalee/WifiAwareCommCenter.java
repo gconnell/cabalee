@@ -217,7 +217,7 @@ public class WifiAwareCommCenter extends AttachCallback {
                 Inet6Address peerIpv6 = peerAwareInfo.getPeerIpv6Addr();
                 synchronized (WifiAwareCommCenter.this) {
                     SocketComm sc = commsByAddr.get(peerIpv6);
-                    if (sc != null && !sc.done()) {
+                    if (sc != null && !sc.closed()) {
                         logger.info("Already have socket to " + peerIpv6);
                         return;
                     }
@@ -226,6 +226,7 @@ public class WifiAwareCommCenter extends AttachCallback {
                 int peerPort = peerAwareInfo.getPort();
                 try {
                     Socket socket = network.getSocketFactory().createSocket(peerIpv6, peerPort);
+                    socket.setSoTimeout(CommService.KEEP_ALIVE_MILLIS * 2);
                     synchronized (WifiAwareCommCenter.this) {
                         commsByAddr.put(peerIpv6, new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), "wifiaware:" + peerIpv6.getHostAddress()));
                     }
