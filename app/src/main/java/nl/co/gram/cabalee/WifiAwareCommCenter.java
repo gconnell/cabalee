@@ -52,6 +52,7 @@ public class WifiAwareCommCenter extends AttachCallback {
     private static final Logger logger = Logger.getLogger("cabalee.wifiaware");
     private final Context context;
     private final CommCenter commCenter;
+    private final ServerPort serverPort;
     private BroadcastReceiver broadcastReceiver = null;
     private WifiAwareManager wifiAwareManager = null;
     private Handler handler = null;
@@ -60,9 +61,10 @@ public class WifiAwareCommCenter extends AttachCallback {
     private ConnectivityManager connectivityManager = null;
     private Map<Inet6Address, SocketComm> commsByAddr = new HashMap<>();
 
-    public WifiAwareCommCenter(Context context, CommCenter commCenter) {
+    public WifiAwareCommCenter(Context context, CommCenter commCenter, ServerPort serverPort) {
         this.context = context;
         this.commCenter = commCenter;
+        this.serverPort = serverPort;
     }
 
     public void onCreate() {
@@ -78,10 +80,10 @@ public class WifiAwareCommCenter extends AttachCallback {
                 if (WifiAwareManager.ACTION_WIFI_AWARE_STATE_CHANGED.equals(action)) {
                     // TODO: close down any existing sessions
                     if (wifiAwareManager.isAvailable() && wifiAwareSession == null) {
-                        logger.severe("wifiAwareManager available");
-                        startWifiAware();
+                        logger.info("wifiAwareManager available");
+                        handler.post(startWifiAware);
                     } else if (!wifiAwareManager.isAvailable() && wifiAwareSession != null) {
-                        logger.severe("wifiAwareManager unavailable");
+                        logger.info("wifiAwareManager unavailable");
                         shutDownWifiAware();
                     }
                 }
@@ -90,24 +92,28 @@ public class WifiAwareCommCenter extends AttachCallback {
         context.registerReceiver(broadcastReceiver, filter);
         connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         wifiAwareManager = (WifiAwareManager) context.getSystemService(Context.WIFI_AWARE_SERVICE);
-        if (wifiAwareManager.isAvailable()) {
-            logger.severe("wifi aware initially available");
-            startWifiAware();
-        } else {
-            logger.severe("wifi aware not initially available");
-        }
+        handler.post(startWifiAware);
     }
 
-    private void startWifiAware() {
-        logger.info("starting");
-        wifiAwareManager.attach(this, handler);
-    }
+    private Runnable startWifiAware = new Runnable() {
+        @Override
+        public void run() {
+            logger.info("starting");
+            if (wifiAwareManager.isAvailable()) {
+                wifiAwareManager.attach(WifiAwareCommCenter.this, handler);
+            } else {
+                logger.severe("Starting wifi aware failed, wifiaware not available");
+                handler.postDelayed(this, 60_000);
+            }
+        }
+    };
 
     private void shutDownWifiAware() {
         logger.info("shutting down");
         if (wifiAwareSession != null) {
             wifiAwareSession.close();
             wifiAwareSession = null;
+            handler.removeCallbacks(startWifiAware);
         }
     }
 
@@ -172,12 +178,7 @@ public class WifiAwareCommCenter extends AttachCallback {
     @Override
     public void onAttachFailed() {
         logger.info("onAttachFailed");
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                startWifiAware();
-            }
-        }, 300_000);
+        handler.postDelayed(startWifiAware, 60_000);
     }
 
     private void connectToPeer(DiscoverySession session, PeerHandle peerHandle, boolean isPublisher) {
@@ -208,6 +209,7 @@ public class WifiAwareCommCenter extends AttachCallback {
             public void onCapabilitiesChanged(Network network, NetworkCapabilities networkCapabilities) {
                 super.onCapabilitiesChanged(network, networkCapabilities);
                 logger.info("onCapabilitiesChanged, publisher=" + isPublisher);
+
                 WifiAwareNetworkInfo peerAwareInfo = (WifiAwareNetworkInfo) networkCapabilities.getTransportInfo();
                 if (isPublisher || peerAwareInfo == null) {
                     return;
@@ -220,7 +222,7 @@ public class WifiAwareCommCenter extends AttachCallback {
                         return;
                     }
                 }
-                logger.severe("Attempting to create wifiAware socket as client");
+                logger.info("Attempting to create wifiAware socket as client");
                 int peerPort = peerAwareInfo.getPort();
                 try {
                     Socket socket = network.getSocketFactory().createSocket(peerIpv6, peerPort);
@@ -244,10 +246,9 @@ public class WifiAwareCommCenter extends AttachCallback {
             public void onUnavailable() {
                 super.onUnavailable();
                 logger.info("onUnavailable");
-                // This is already done
-                // connectivityManager.unregisterNetworkCallback(this);
+                // This is already done: connectivityManager.unregisterNetworkCallback(this);
             }
         };
-        connectivityManager.requestNetwork(networkRequest, callback, 10_000);
+        connectivityManager.requestNetwork(networkRequest, callback);
     }
 }

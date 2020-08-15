@@ -18,13 +18,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.net.NetworkInfo;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
-import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo;
+import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest;
 import android.os.Build;
 import android.os.Handler;
 import android.os.SystemClock;
@@ -39,13 +39,32 @@ import java.util.logging.Logger;
 
 public class WifiP2pCommCenter {
     private static final int PORT = 22225;
+    private static final String DISCOVERY_SERVICE_TYPE = "_cabalee._tcp";
     private static Logger logger = Logger.getLogger("cabalee.wifip2p");
+    private final ServerPort serverPort;
     private WifiP2pInfo wifiP2pInfo = null;
     private SocketComm socketComm = null;
+    private WifiP2pDnsSdServiceRequest wifiP2pDnsSdServiceRequest = null;
+    private WifiP2pManager.Channel wifiChannel = null;
+    private final Context context;
+    private final CommCenter commCenter;
+    private BroadcastReceiver broadcastReceiver = null;
+    private Handler handler = null;
+    private Socket clientSocket = null;
+    private WifiP2pManager wifiP2pManager = null;
+    private ServerSocket serverSocket = null;
 
-    public WifiP2pCommCenter(Context context, CommCenter commCenter) {
+    private Runnable discoverWifiPeersRunnable = new Runnable() {
+        @Override
+        public void run() {
+            discoverWifiPeers();
+        }
+    };
+
+    public WifiP2pCommCenter(Context context, CommCenter commCenter, ServerPort serverPort) {
         this.context = context;
         this.commCenter = commCenter;
+        this.serverPort = serverPort;
     }
 
     private static String wifiP2pFailure(int reason) {
@@ -75,25 +94,6 @@ public class WifiP2pCommCenter {
         };
     }
 
-    private WifiP2pManager.Channel wifiChannel = null;
-    private final Context context;
-    private final CommCenter commCenter;
-    private BroadcastReceiver loggingReceiver = null;
-    private Handler handler = null;
-    private Socket clientSocket = null;
-    private Runnable discoverWifiPeersRunnable = new Runnable() {
-        @Override
-        public void run() {
-            discoverWifiPeers();
-            if (wifiP2pInfo != null && wifiP2pInfo.groupFormed && !wifiP2pInfo.isGroupOwner && (socketComm == null || socketComm.done())) {
-                connectSocketTo(wifiP2pInfo.groupOwnerAddress);
-            }
-            handler.postDelayed(this, 15_000);
-        }
-    };
-    private WifiP2pManager wifiP2pManager = null;
-    private ServerSocket serverSocket = null;
-
     private void connectTo(final WifiP2pDevice wifiP2pDevice) {
         logger.info("requesting connect to " + wifiP2pDevice.deviceName);
         Long lastConnectMillis = lastConnectAttemptMillis.get(wifiP2pDevice.deviceAddress);
@@ -117,46 +117,37 @@ public class WifiP2pCommCenter {
         });
     }
 
-    void startGroup() {
-        wifiP2pManager.createGroup(wifiChannel, loggingListener("createGroup"));
-    }
-
-    void removeGroup() {
-        wifiP2pManager.removeGroup(wifiChannel, loggingListener("removeGroup"));
-    }
-
-    void discoverPeers() {
-        handler.post(discoverWifiPeersRunnable);
-    }
-
     Map<String, Long> lastConnectAttemptMillis = new HashMap<>();
 
     public void onCreate() {
         logger.severe("-------------------- STARTING ---------------------");
 
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
+        intentFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
+        intentFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
+        intentFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
+        intentFilter.addAction(WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION);
+        broadcastReceiver = receiver();
+        context.registerReceiver(broadcastReceiver, intentFilter);
         wifiP2pManager = (WifiP2pManager) context.getSystemService(Context.WIFI_P2P_SERVICE);
         wifiChannel = wifiP2pManager.initialize(
                 context,
                 context.getMainLooper(),
                 null);
-        IntentFilter loggingFilter = new IntentFilter();
-        loggingFilter.addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION);
-        loggingFilter.addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
-        loggingFilter.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
-        loggingFilter.addAction(WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION);
-        loggingFilter.addAction(WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION);
-        loggingReceiver = receiver();
-        context.registerReceiver(loggingReceiver, loggingFilter);
         handler = new Handler(context.getMainLooper());
-        handler.post(discoverWifiPeersRunnable);
         logger.info("onCreate complete");
+        registerService();
+        setUpServiceDiscovery();
+        handler.post(discoverWifiPeersRunnable);
     }
 
     public void onDestroy() {
         handler.removeCallbacks(discoverWifiPeersRunnable);
-        context.unregisterReceiver(loggingReceiver);
+        context.unregisterReceiver(broadcastReceiver);
         wifiP2pManager.removeGroup(wifiChannel, loggingListener("removeGroup"));
         wifiP2pManager.stopPeerDiscovery(wifiChannel, loggingListener("stopPeerDiscovery"));
+        wifiP2pManager.clearServiceRequests(wifiChannel, loggingListener("clearServiceRequests"));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             wifiChannel.close();
         }
@@ -170,7 +161,22 @@ public class WifiP2pCommCenter {
     }
 
     private void discoverWifiPeers() {
-        wifiP2pManager.discoverPeers(wifiChannel, loggingListener("discoverPeers"));
+        wifiP2pManager.discoverServices(wifiChannel, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                logger.info("discovering wifi peers started successfully");
+            }
+
+            @Override
+            public void onFailure(int reason) {
+                logger.info("discovering wifi peers start failed: " + wifiP2pFailure(reason));
+                switch (reason) {
+                    case WifiP2pManager.BUSY:
+                    case WifiP2pManager.ERROR:
+                        handler.postDelayed(discoverWifiPeersRunnable, 15_000);
+                }
+            }
+        });
     }
 
     private BroadcastReceiver receiver() {
@@ -183,42 +189,25 @@ public class WifiP2pCommCenter {
                     int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
                     if (state == WifiP2pManager.WIFI_P2P_STATE_ENABLED) {
                         logger.info("Enabled, discovering peers");
-                        discoverWifiPeers();
+                        handler.post(discoverWifiPeersRunnable);
                     } else {
                         logger.info("Not enabled");
+                        handler.removeCallbacks(discoverWifiPeersRunnable);
                     }
                 } else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(action)) {
                     WifiP2pDeviceList wifiP2pDeviceList = (WifiP2pDeviceList) intent
                             .getParcelableExtra(WifiP2pManager.EXTRA_P2P_DEVICE_LIST);
-                    logger.info("Got " + wifiP2pDeviceList.getDeviceList().size() + " WifiP2P peers: " + wifiP2pInfo);
-                    if (wifiP2pInfo == null || !wifiP2pInfo.groupFormed) {
-                        for (WifiP2pDevice d : wifiP2pDeviceList.getDeviceList()) {
-                            connectTo(d);
-                        }
+                    logger.info("Got " + wifiP2pDeviceList.getDeviceList().size() + " WifiP2P peers");
+                    for (WifiP2pDevice d : wifiP2pDeviceList.getDeviceList()) {
+                        logger.info(" - " + d.deviceName);
+                        // connectTo(d);
                     }
                 } else if (WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(action)) {
                     wifiP2pInfo = (WifiP2pInfo) intent
                             .getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO);
-                    NetworkInfo networkInfo = (NetworkInfo) intent
-                            .getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
-                    if (networkInfo.isConnected()) {
-                        logger.info("Connection to " + wifiP2pInfo);
-                        logger.info("Network info: " + networkInfo);
-                    } else {
-                        logger.info("Disconnect from " + wifiP2pInfo);
-                    }
-                    if (wifiP2pInfo.groupFormed) {
-                        if (wifiP2pInfo.isGroupOwner) {
-                            logger.info("group formed, as owner: SERVER");
-                        } else {
-                            logger.info("group formed, nonowner: CLIENT");
-                        }
-                    }
-                    WifiP2pGroup wifiP2pGroup = (WifiP2pGroup) intent
-                            .getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_GROUP);
-                    if (wifiP2pGroup != null) {
-                        logger.info("Wifi P2P Group: " + wifiP2pGroup.getNetworkName());
-                        logger.info("Passphrase: " + wifiP2pGroup.getPassphrase());
+                    logger.info("Connection to " + wifiP2pInfo);
+                    if (wifiP2pInfo != null && wifiP2pInfo.groupFormed && !wifiP2pInfo.isGroupOwner && (socketComm == null || socketComm.done())) {
+                        connectSocketTo(wifiP2pInfo.groupOwnerAddress);
                     }
                 } else if (WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION.equals(action)) {
                     int state = intent.getIntExtra(WifiP2pManager.EXTRA_DISCOVERY_STATE, -1);
@@ -228,6 +217,7 @@ public class WifiP2pCommCenter {
                             break;
                         case WifiP2pManager.WIFI_P2P_DISCOVERY_STOPPED:
                             logger.info("Discovery stopped");
+                            handler.postDelayed(discoverWifiPeersRunnable, 60_000);
                             break;
                         default:
                             logger.info("Discovery state unknown");
@@ -268,5 +258,40 @@ public class WifiP2pCommCenter {
                 }
             }
         }).start();
+    }
+
+    private void registerService() {
+        //  Create a string map containing information about your service.
+        Map record = new HashMap();
+        record.put("available", "visible");
+        WifiP2pDnsSdServiceInfo serviceInfo =
+                WifiP2pDnsSdServiceInfo.newInstance("cabalee", DISCOVERY_SERVICE_TYPE, record);
+
+        wifiP2pManager.addLocalService(wifiChannel, serviceInfo, loggingListener("addLocalService"));
+    }
+
+    private void setUpServiceDiscovery() {
+        WifiP2pManager.DnsSdTxtRecordListener txtListener = new WifiP2pManager.DnsSdTxtRecordListener() {
+            @Override
+            public void onDnsSdTxtRecordAvailable(
+                    String fullDomain, Map record, WifiP2pDevice device) {
+                logger.info("DnsSdTxtRecord available from " + fullDomain + ": " + record.toString());
+                connectTo(device);
+            }
+        };
+        WifiP2pManager.DnsSdServiceResponseListener servListener = new WifiP2pManager.DnsSdServiceResponseListener() {
+            @Override
+            public void onDnsSdServiceAvailable(String instanceName, String registrationType,
+                                                WifiP2pDevice device) {
+                logger.info("onDnsSdServiceAvailable: instance=" + instanceName + " reg=" + registrationType);
+                if (registrationType.startsWith(DISCOVERY_SERVICE_TYPE)) {
+                    connectTo(device);
+                }
+            }
+        };
+
+        wifiP2pManager.setDnsSdResponseListeners(wifiChannel, servListener, txtListener);
+        wifiP2pDnsSdServiceRequest = WifiP2pDnsSdServiceRequest.newInstance();
+        wifiP2pManager.addServiceRequest(wifiChannel, wifiP2pDnsSdServiceRequest, loggingListener("addServiceRequest"));
     }
 }

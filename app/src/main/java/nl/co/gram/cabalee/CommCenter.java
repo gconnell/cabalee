@@ -47,13 +47,13 @@ public class CommCenter {
     }
 
     public synchronized void addComm(Comm comm) {
-        logger.info("Adding comm: " + comm.name());
+        logger.severe("Adding comm: " + comm.name());
         commsByName.put(comm.name(), comm);
         broadcastActive();
     }
 
     public synchronized void removeComm(Comm comm) {
-        logger.info("Removing comm: " + comm.name());
+        logger.severe("Removing comm: " + comm.name());
         commsByName.remove(comm.name());
         broadcastActive();
     }

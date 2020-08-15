@@ -138,20 +138,19 @@ public class CommService extends Service {
         nearbyCommCenter = new NearbyCommCenter(this, commCenter, Strategy.P2P_CLUSTER);
         nearbyCommCenter.onCreate();
 
+        startServer();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE)) {
-            startServer();
-            wifiAwareCommCenter = new WifiAwareCommCenter(this, commCenter);
+            wifiAwareCommCenter = new WifiAwareCommCenter(this, commCenter, serverPort);
             wifiAwareCommCenter.onCreate();
-        } /*else {
-            startServer();
-            wifiP2pCommCenter = new WifiP2pCommCenter(this, commCenter);
+        } else if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)) {
+            wifiP2pCommCenter = new WifiP2pCommCenter(this, commCenter, serverPort);
             wifiP2pCommCenter.onCreate();
-        } */
+        }
         handler.post(keepAliveRunnable);
     }
 
     private void startServer() {
-        if (serverPort != null) {
+        if (serverPort == null) {
             serverPort = new ServerPort(commCenter);
             serverPort.start();
         }
