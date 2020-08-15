@@ -54,13 +54,6 @@ public class WifiP2pCommCenter {
     private WifiP2pManager wifiP2pManager = null;
     private ServerSocket serverSocket = null;
 
-    private Runnable discoverWifiPeersRunnable = new Runnable() {
-        @Override
-        public void run() {
-            discoverWifiPeers();
-        }
-    };
-
     public WifiP2pCommCenter(Context context, CommCenter commCenter, ServerPort serverPort) {
         this.context = context;
         this.commCenter = commCenter;
@@ -160,24 +153,28 @@ public class WifiP2pCommCenter {
         logger.info("onDestroy complete");
     }
 
-    private void discoverWifiPeers() {
-        wifiP2pManager.discoverServices(wifiChannel, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() {
-                logger.info("discovering wifi peers started successfully");
-            }
-
-            @Override
-            public void onFailure(int reason) {
-                logger.info("discovering wifi peers start failed: " + wifiP2pFailure(reason));
-                switch (reason) {
-                    case WifiP2pManager.BUSY:
-                    case WifiP2pManager.ERROR:
-                        handler.postDelayed(discoverWifiPeersRunnable, 15_000);
+    private Runnable discoverWifiPeersRunnable = new Runnable() {
+        @Override
+        public void run() {
+            handler.removeCallbacks(this);
+            wifiP2pManager.discoverServices(wifiChannel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    logger.info("discovering wifi peers started successfully");
                 }
-            }
-        });
-    }
+
+                @Override
+                public void onFailure(int reason) {
+                    logger.info("discovering wifi peers start failed: " + wifiP2pFailure(reason));
+                    switch (reason) {
+                        case WifiP2pManager.BUSY:
+                        case WifiP2pManager.ERROR:
+                            handler.postDelayed(discoverWifiPeersRunnable, 15_000);
+                    }
+                }
+            });
+        }
+    };
 
     private BroadcastReceiver receiver() {
         return new BroadcastReceiver() {

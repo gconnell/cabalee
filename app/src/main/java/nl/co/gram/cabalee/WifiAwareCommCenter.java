@@ -103,7 +103,7 @@ public class WifiAwareCommCenter extends AttachCallback {
                 wifiAwareManager.attach(WifiAwareCommCenter.this, handler);
             } else {
                 logger.severe("Starting wifi aware failed, wifiaware not available");
-                handler.postDelayed(this, 60_000);
+                handler.postDelayed(this, 300_000);
             }
         }
     };
@@ -131,48 +131,55 @@ public class WifiAwareCommCenter extends AttachCallback {
                 .setServiceName(SERVICE_NAME)
                 .build();
 
-        wifiAwareSession.publish(publishConfig, new DiscoverySessionCallback() {
-            private PublishDiscoverySession publishDiscoverySession = null;
+        try {
+            wifiAwareSession.publish(publishConfig, new DiscoverySessionCallback() {
+                private PublishDiscoverySession publishDiscoverySession = null;
 
-            @Override
-            public void onPublishStarted(PublishDiscoverySession session) {
-                logger.info("onPublishStarted");
-                publishDiscoverySession = session;
-            }
-            @Override
-            public void onMessageReceived(PeerHandle peerHandle, byte[] message) {
-                logger.info("onMessageReceived (@publisher)");
-                publishDiscoverySession.sendMessage(peerHandle, 1, new byte[1]);
-                connectToPeer(publishDiscoverySession, peerHandle, true);
-            }
-        }, handler);
+                @Override
+                public void onPublishStarted(PublishDiscoverySession session) {
+                    logger.info("onPublishStarted");
+                    publishDiscoverySession = session;
+                }
 
-        SubscribeConfig subscribeConfig = new SubscribeConfig.Builder()
-                .setServiceName(SERVICE_NAME)
-                .build();
+                @Override
+                public void onMessageReceived(PeerHandle peerHandle, byte[] message) {
+                    logger.info("onMessageReceived (@publisher)");
+                    publishDiscoverySession.sendMessage(peerHandle, 1, new byte[1]);
+                    connectToPeer(publishDiscoverySession, peerHandle, true);
+                }
+            }, handler);
 
-        wifiAwareSession.subscribe(subscribeConfig, new DiscoverySessionCallback() {
-            private SubscribeDiscoverySession subscribeDiscoverySession = null;
+            SubscribeConfig subscribeConfig = new SubscribeConfig.Builder()
+                    .setServiceName(SERVICE_NAME)
+                    .build();
 
-            @Override
-            public void onSubscribeStarted(SubscribeDiscoverySession session) {
-                logger.info("onSubscribeStarted");
-                subscribeDiscoverySession = session;
-            }
+            wifiAwareSession.subscribe(subscribeConfig, new DiscoverySessionCallback() {
+                private SubscribeDiscoverySession subscribeDiscoverySession = null;
 
-            @Override
-            public void onMessageReceived(android.net.wifi.aware.PeerHandle peerHandle, byte[] message) {
-                logger.info("onMessageReceived (@subscriber)");
-                connectToPeer(subscribeDiscoverySession, peerHandle, false);
-            }
+                @Override
+                public void onSubscribeStarted(SubscribeDiscoverySession session) {
+                    logger.info("onSubscribeStarted");
+                    subscribeDiscoverySession = session;
+                }
 
-            @Override
-            public void onServiceDiscovered(PeerHandle peerHandle,
-                                            byte[] serviceSpecificInfo, List<byte[]> matchFilter) {
-                logger.info("onServiceDiscovered");
-                subscribeDiscoverySession.sendMessage(peerHandle, 0, new byte[1]);
-            }
-        }, handler);
+                @Override
+                public void onMessageReceived(android.net.wifi.aware.PeerHandle peerHandle, byte[] message) {
+                    logger.info("onMessageReceived (@subscriber)");
+                    connectToPeer(subscribeDiscoverySession, peerHandle, false);
+                }
+
+                @Override
+                public void onServiceDiscovered(PeerHandle peerHandle,
+                                                byte[] serviceSpecificInfo, List<byte[]> matchFilter) {
+                    logger.info("onServiceDiscovered");
+                    subscribeDiscoverySession.sendMessage(peerHandle, 0, new byte[1]);
+                }
+            }, handler);
+        } catch (SecurityException e) {
+            logger.severe("Security exception publishing/subscribing, probably backgrounded");
+            shutDownWifiAware();
+            handler.postDelayed(startWifiAware, 300_000);
+        }
     }
 
     @Override
