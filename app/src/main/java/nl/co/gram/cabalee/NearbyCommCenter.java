@@ -92,7 +92,7 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
     }
 
     void sendPayload(ByteString bs, String remote) {
-        logger.info("Sending to " + this);
+        logger.info("Sending to " + remote);
         connectionsClient.sendPayload(remote, Payload.fromBytes(bs.toByteArray()));
     }
 
