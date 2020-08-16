@@ -244,6 +244,13 @@ public class WifiP2pCommCenter {
                     logger.severe("Successfully created socket, wrapping in SocketComm");
                     clientSocket.setSoTimeout(CommService.KEEP_ALIVE_MILLIS * 2);
                     socketComm = new SocketComm(commCenter, clientSocket.getInputStream(), clientSocket.getOutputStream(), "wifip2pClient:" + groupOwnerAddress);
+                    socketComm.addCloseRunnable(new Runnable() {
+                        @Override
+                        public void run() {
+                            logger.info("Client session closed, removing group");
+                            wifiP2pManager.removeGroup(wifiChannel, loggingListener("removeGroup"));
+                        }
+                    });
                 } catch (Throwable t) {
                     logger.info("while handling socket to " + groupOwnerAddress + ": " + t.getMessage());
                     try {

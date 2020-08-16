@@ -160,7 +160,6 @@ public class WifiAwareCommCenter extends AttachCallback {
 
             SubscribeConfig subscribeConfig = new SubscribeConfig.Builder()
                     .setServiceName(SERVICE_NAME)
-                    .setSubscribeType(SubscribeConfig.SUBSCRIBE_TYPE_PASSIVE)
                     .setMinDistanceMm(5_000)
                     .build();
 
@@ -232,7 +231,7 @@ public class WifiAwareCommCenter extends AttachCallback {
             }
 
             @Override
-            public void onCapabilitiesChanged(Network network, NetworkCapabilities networkCapabilities) {
+            public void onCapabilitiesChanged(final Network network, NetworkCapabilities networkCapabilities) {
                 super.onCapabilitiesChanged(network, networkCapabilities);
                 logger.info("onCapabilitiesChanged, publisher=" + isPublisher);
 
@@ -253,8 +252,15 @@ public class WifiAwareCommCenter extends AttachCallback {
                 try {
                     Socket socket = network.getSocketFactory().createSocket(peerIpv6, peerPort);
                     socket.setSoTimeout(CommService.KEEP_ALIVE_MILLIS * 2);
+                    SocketComm sc = new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), "wifiaware:" + peerIpv6.getHostAddress());
+                    sc.addCloseRunnable(new Runnable() {
+                        @Override
+                        public void run() {
+                            connectivityManager.reportNetworkConnectivity(network, false);
+                        }
+                    });
                     synchronized (WifiAwareCommCenter.this) {
-                        commsByAddr.put(peerIpv6, new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), "wifiaware:" + peerIpv6.getHostAddress()));
+                        commsByAddr.put(peerIpv6, sc);
                     }
                 } catch (Throwable t) {
                     logger.severe("Socket creation failed: " + t.getMessage());
@@ -272,7 +278,7 @@ public class WifiAwareCommCenter extends AttachCallback {
             @Override
             public void onUnavailable() {
                 super.onUnavailable();
-                logger.info("onUnavailable");
+                logger.info("onUnavailable, publisher=" + isPublisher);
                 // This is already done: connectivityManager.unregisterNetworkCallback(this);
             }
         };

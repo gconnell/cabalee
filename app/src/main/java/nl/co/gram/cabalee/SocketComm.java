@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -39,6 +41,7 @@ public class SocketComm implements Comm {
     private final String name;
     private final BlockingDeque<ByteString> toSend = new LinkedBlockingDeque<>();
     private final CommCenter commCenter;
+    private final List<Runnable> onClose = new ArrayList<>();
 
     @Override
     public String name() {
@@ -92,6 +95,11 @@ public class SocketComm implements Comm {
         new Thread(receiver()).start();
     }
 
+    public SocketComm addCloseRunnable(Runnable r) {
+        onClose.add(r);
+        return this;
+    }
+
     private void reallyAwait(CountDownLatch cdl) {
         while (true) {
             try {
@@ -116,6 +124,9 @@ public class SocketComm implements Comm {
                 logger.severe("closing output stream: " + e.getMessage());
             }
             toSend.add(ByteString.EMPTY);
+            for (Runnable r: onClose) {
+                r.run();
+            }
         }
     }
 
