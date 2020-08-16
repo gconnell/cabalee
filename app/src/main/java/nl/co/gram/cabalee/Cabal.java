@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 
-public class ReceivingHandler {
+public class Cabal {
     private static final Logger logger = Logger.getLogger("cabalee.receiver");
     private final byte[] key;
     private final ByteString myID;
@@ -43,7 +43,7 @@ public class ReceivingHandler {
 
     public String type() { return "receive"; }
 
-    public ReceivingHandler(byte[] key, CommCenter commCenter, Context context) {
+    public Cabal(byte[] key, CommCenter commCenter, Context context) {
         Util.checkArgument(key.length == TweetNaclFast.Box.secretKeyLength, "key wrong length");
         this.commCenter = commCenter;
         this.key = key;
@@ -123,7 +123,7 @@ public class ReceivingHandler {
         return key;
     }
 
-    public ReceivingHandler(CommCenter commCenter, Context context) {
+    public Cabal(CommCenter commCenter, Context context) {
         this(newKey(), commCenter, context);
     }
 

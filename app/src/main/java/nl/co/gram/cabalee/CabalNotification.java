@@ -36,13 +36,13 @@ public class CabalNotification {
     private boolean visibleViaNetworkActivity = false;
     private final int notificationID;
     private int unreadCount = 0;
-    private final ReceivingHandler rh;
+    private final Cabal rh;
     private final NotificationManager notificationManager;
     private final BroadcastReceiver broadcastReceiver;
     private final LocalBroadcastManager localBroadcastManager;
     private boolean destruction = false;
 
-    CabalNotification(Context context, ReceivingHandler rh) {
+    CabalNotification(Context context, Cabal rh) {
         this.context = context;
         notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         this.rh = rh;

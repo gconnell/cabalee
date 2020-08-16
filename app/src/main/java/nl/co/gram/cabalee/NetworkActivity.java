@@ -68,7 +68,7 @@ import java.util.logging.Logger;
 
 public class NetworkActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("cabalee.netact");
-    private ReceivingHandler receivingHandler = null;
+    private Cabal cabal = null;
     private ByteString networkId = null;
     private EditText editText = null;
     private RecyclerView recyclerView = null;
@@ -83,11 +83,11 @@ public class NetworkActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             commServiceBinder = (CommService.Binder) service;
-            receivingHandler = commServiceBinder.svc().commCenter().receiver(networkId);
-            if (receivingHandler == null) return;
-            setTitle(receivingHandler.name());
+            cabal = commServiceBinder.svc().commCenter().receiver(networkId);
+            if (cabal == null) return;
+            setTitle(cabal.name());
             ImageView avatar = findViewById(R.id.avatar);
-            avatar.setImageBitmap(Util.identicon(receivingHandler.myID()));
+            avatar.setImageBitmap(Util.identicon(cabal.myID()));
             refreshList();
         }
 
@@ -100,11 +100,11 @@ public class NetworkActivity extends AppCompatActivity {
     private void refreshList() {
         int size = receiverListAdapter.getItemCount();
         boolean atBottom = size == 0 || linearLayoutManager.findLastCompletelyVisibleItemPosition() == size - 1;
-        if (receivingHandler != null) {
-            List<Payload> payloads = receivingHandler.payloads();
+        if (cabal != null) {
+            List<Payload> payloads = cabal.payloads();
             receiverListAdapter.submitList(payloads);
             int lastIdx = payloads.size()-1;
-            if (payloads.size() > 0 && (atBottom || payloads.get(lastIdx).getCleartextBroadcast().getFrom().equals(receivingHandler.myID()))) {
+            if (payloads.size() > 0 && (atBottom || payloads.get(lastIdx).getCleartextBroadcast().getFrom().equals(cabal.myID()))) {
                 recyclerView.smoothScrollToPosition(lastIdx);
             }
         }
@@ -201,7 +201,7 @@ public class NetworkActivity extends AppCompatActivity {
     }
 
     private void sendText() {
-        if (receivingHandler == null) return;
+        if (cabal == null) return;
         if (commServiceBinder == null) return;
         if (commServiceBinder.svc().commCenter().activeComms().size() == 0) {
             new AlertDialog.Builder(this).setTitle("No active connections")
@@ -214,11 +214,11 @@ public class NetworkActivity extends AppCompatActivity {
         editText.getText().clear();
         Payload p = Payload.newBuilder()
                 .setCleartextBroadcast(MessageContents.newBuilder()
-                        .setFrom(receivingHandler.myID())
+                        .setFrom(cabal.myID())
                         .setText(out)
                         .build())
                 .build();
-        receivingHandler.sendPayload(p);
+        cabal.sendPayload(p);
     }
 
     @Override
@@ -233,13 +233,13 @@ public class NetworkActivity extends AppCompatActivity {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.addmember:
-                if (receivingHandler != null) showQr();
+                if (cabal != null) showQr();
                 return true;
             case R.id.editname:
-                if (receivingHandler != null) editName();
+                if (cabal != null) editName();
                 return true;
             case R.id.destroy:
-                if (receivingHandler != null) destroy();
+                if (cabal != null) destroy();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -253,7 +253,7 @@ public class NetworkActivity extends AppCompatActivity {
             @Override
             public void run() {
                 logger.info("Sending destroy");
-                receivingHandler.sendPayload(Payload.newBuilder()
+                cabal.sendPayload(Payload.newBuilder()
                         .setSelfDestruct(SelfDestruct.newBuilder())
                         .build());
                 if (0 < --attempts) {
@@ -290,7 +290,7 @@ public class NetworkActivity extends AppCompatActivity {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         Intent i = new Intent(NetworkActivity.this, QrShowerActivity.class);
-                        i.setData(Uri.parse(QrShowerActivity.url(receivingHandler.sooperSecret())));
+                        i.setData(Uri.parse(QrShowerActivity.url(cabal.sooperSecret())));
                         i.putExtra(Intents.EXTRA_QR_TITLE, "Cabal Secret");
                         startActivity(i);
                     }
@@ -313,7 +313,7 @@ public class NetworkActivity extends AppCompatActivity {
                     public void onClick(DialogInterface dialog, int which) {
                         String name = input.getText().toString();
                         logger.info("New name: " + name);
-                        receivingHandler.setName(name);
+                        cabal.setName(name);
                         setTitle(name);
                     }
                 }).create();

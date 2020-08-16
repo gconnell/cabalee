@@ -31,7 +31,7 @@ public class CommCenter {
     private static final Logger logger = Logger.getLogger("cabalee.center");
     private final CommService commService;
     private Map<String, Comm> commsByName = new HashMap<>();
-    private Map<ByteString, ReceivingHandler> messageHandlers = new HashMap<>();
+    private Map<ByteString, Cabal> messageHandlers = new HashMap<>();
     private IDSet recentMessageIDs = new IDSet(60_000_000_000L, 15);
     private final LocalBroadcastManager localBroadcastManager;
     public static final ByteString KEEP_ALIVE_MESSAGE = ByteString.copyFrom(new byte[]{MsgType.KEEPALIVE_MESSAGE_V1_VALUE});
@@ -86,20 +86,20 @@ public class CommCenter {
         return true;
     }
 
-    synchronized public List<ReceivingHandler> receivers() {
+    synchronized public List<Cabal> receivers() {
         return new ArrayList<>(messageHandlers.values());
     }
 
-    synchronized public ReceivingHandler receiver(ByteString id) {
+    synchronized public Cabal receiver(ByteString id) {
         return messageHandlers.get(id);
     }
 
-    synchronized public ReceivingHandler forKey(byte[] key) {
-        ReceivingHandler rh;
+    synchronized public Cabal forKey(byte[] key) {
+        Cabal rh;
         if (key == null) {
-            rh = new ReceivingHandler(this, commService);
+            rh = new Cabal(this, commService);
         } else {
-            rh = new ReceivingHandler(key, this, commService);
+            rh = new Cabal(key, this, commService);
         }
         if (messageHandlers.containsKey(rh.id())) {
             rh = messageHandlers.get(rh.id());
@@ -133,11 +133,11 @@ public class CommCenter {
             logger.info("discarding duplicate transport");
             return;
         }
-        Collection<ReceivingHandler> rhs;
+        Collection<Cabal> rhs;
         synchronized (this) {
             rhs = new ArrayList<>(messageHandlers.values());
         }
-        for (ReceivingHandler rh : rhs) {
+        for (Cabal rh : rhs) {
             if (rh.handleTransport(t)) {
                 break;
             }

@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView recyclerView = null;
     private ReceiverListAdapter receiverListAdapter = null;
     private CommService.Binder commServiceBinder = null;
-    private ArrayList<ReceivingHandler> receivingHandlers = new ArrayList<>();
+    private ArrayList<Cabal> cabals = new ArrayList<>();
     private ByteString navigateTo = null;
     private Runnable navigateRunnable = null;
     private LocalBroadcastManager localBroadcastManager = null;
@@ -65,11 +65,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void refresh() {
         if (commServiceBinder == null) {
-            receivingHandlers = new ArrayList<>();
+            cabals = new ArrayList<>();
         } else {
-            receivingHandlers = new ArrayList<>(commServiceBinder.svc().commCenter().receivers());
+            cabals = new ArrayList<>(commServiceBinder.svc().commCenter().receivers());
         }
-        receiverListAdapter.submitList(receivingHandlers);
+        receiverListAdapter.submitList(cabals);
     }
 
     private ServiceConnection commServiceConnection = new ServiceConnection() {
@@ -95,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void navigate(ReceivingHandler rh) {
+    private void navigate(Cabal rh) {
         if (navigateRunnable != null) {
             handler.removeCallbacks(navigateRunnable);
             navigateRunnable = null;
@@ -218,10 +218,10 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         CommCenter commCenter = commServiceBinder.svc().commCenter();
-        ReceivingHandler rh = commCenter.forKey(key);
+        Cabal rh = commCenter.forKey(key);
         navigate(rh);
         refresh();
-        recyclerView.smoothScrollToPosition(receivingHandlers.indexOf(rh));
+        recyclerView.smoothScrollToPosition(cabals.indexOf(rh));
     }
 
     @Override
@@ -281,7 +281,7 @@ public class MainActivity extends AppCompatActivity {
         private FrameLayout frameLayout;
         private TextView textView;
         private ImageView myImage;
-        private ReceivingHandler receivingHandler = null;
+        private Cabal cabal = null;
         public MyViewHolder(FrameLayout fl) {
             super(fl);
             frameLayout = fl;
@@ -290,13 +290,13 @@ public class MainActivity extends AppCompatActivity {
             fl.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    toNetworkPage(receivingHandler, myImage);
+                    toNetworkPage(cabal, myImage);
                 }
             });
         }
 
-        void bindTo(ReceivingHandler data) {
-            receivingHandler = data;
+        void bindTo(Cabal data) {
+            cabal = data;
             textView.setText("Cabal: " + data.name());
             myImage.setImageBitmap(Util.identicon(data.id()));
             if (data.id().equals(navigateTo)) {
@@ -315,7 +315,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void toNetworkPage(ReceivingHandler rh, ImageView myImage) {
+    private void toNetworkPage(Cabal rh, ImageView myImage) {
         handler.post(new Runnable() {
             @Override
             public void run() {
@@ -338,21 +338,21 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    public static final DiffUtil.ItemCallback<ReceivingHandler> DIFF_CALLBACK  = new DiffUtil.ItemCallback<ReceivingHandler>() {
+    public static final DiffUtil.ItemCallback<Cabal> DIFF_CALLBACK  = new DiffUtil.ItemCallback<Cabal>() {
         @Override
-        public boolean areItemsTheSame(@NonNull ReceivingHandler oldItem, @NonNull ReceivingHandler newItem) {
+        public boolean areItemsTheSame(@NonNull Cabal oldItem, @NonNull Cabal newItem) {
             return oldItem.equals(newItem);
         }
 
         @Override
-        public boolean areContentsTheSame(@NonNull ReceivingHandler oldItem, @NonNull ReceivingHandler newItem) {
+        public boolean areContentsTheSame(@NonNull Cabal oldItem, @NonNull Cabal newItem) {
             boolean out = oldItem.id().equals(newItem.id())
                     && oldItem.name().equals(newItem.name());
             return out;
         }
     };
 
-    class ReceiverListAdapter extends ListAdapter<ReceivingHandler, MyViewHolder> {
+    class ReceiverListAdapter extends ListAdapter<Cabal, MyViewHolder> {
         public ReceiverListAdapter() {
             super(DIFF_CALLBACK);
         }

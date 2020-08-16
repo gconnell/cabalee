@@ -61,11 +61,11 @@ public class ExampleInstrumentedTest {
                     .setCleartextBroadcast(MessageContents.newBuilder()
                             .setText("wheee"))
                     .build();
-            ByteString boxed = ReceivingHandler.boxIt(p, box);
-            Payload p2 = ReceivingHandler.unboxIt(boxed, box);
+            ByteString boxed = Cabal.boxIt(p, box);
+            Payload p2 = Cabal.unboxIt(boxed, box);
             assertTrue(p.equals(p2));
-            assertNull(ReceivingHandler.unboxIt(boxed.substring(1), box));
-            assertNull(ReceivingHandler.unboxIt(boxed.substring(0, boxed.size() - 1), box));
+            assertNull(Cabal.unboxIt(boxed.substring(1), box));
+            assertNull(Cabal.unboxIt(boxed.substring(0, boxed.size() - 1), box));
             int minSize = 127 + 1 + TweetNaclFast.SecretBox.overheadLength + TweetNaclFast.SecretBox.nonceLength;
             if (minSize > boxed.size()) {
                 fail("Boxed size " + boxed.size() + " < min size " + minSize);
@@ -100,8 +100,8 @@ public class ExampleInstrumentedTest {
                                 "111111111111111111111111111111111111" +
                                 "111111111111111111111111111111111111"))
                 .build();
-        ByteString boxed = ReceivingHandler.boxIt(p, box);
-        Payload p2 = ReceivingHandler.unboxIt(boxed, box);
+        ByteString boxed = Cabal.boxIt(p, box);
+        Payload p2 = Cabal.unboxIt(boxed, box);
         assertTrue(p.equals(p2));
     }
 
