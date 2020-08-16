@@ -67,11 +67,11 @@ public class CommCenter {
     }
 
     public synchronized void sendToAll(ByteString payload, String except) {
-        logger.info("sending to all");
         for (Map.Entry<String, Comm> entry : commsByName.entrySet()) {
             if (except != null && except.equals(entry.getKey())) {
                 continue;
             }
+            logger.info("Sending " + payload.size() + " bytes to " + entry.getValue().name());
             entry.getValue().sendPayload(payload);
         }
     }

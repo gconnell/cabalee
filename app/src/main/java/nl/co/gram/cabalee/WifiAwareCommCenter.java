@@ -149,7 +149,7 @@ public class WifiAwareCommCenter extends AttachCallback {
                 public void onMessageReceived(PeerHandle peerHandle, byte[] message) {
                     logger.info("onMessageReceived (@publisher)");
                     publishDiscoverySession.sendMessage(peerHandle, 1, new byte[1]);
-                    connectToPeer(publishDiscoverySession, peerHandle, true);
+                    connectToPeer(publishDiscoverySession, peerHandle, true, 2);
                 }
 
                 @Override
@@ -175,7 +175,7 @@ public class WifiAwareCommCenter extends AttachCallback {
                 @Override
                 public void onMessageReceived(android.net.wifi.aware.PeerHandle peerHandle, byte[] message) {
                     logger.info("onMessageReceived (@subscriber)");
-                    connectToPeer(subscribeDiscoverySession, peerHandle, false);
+                    connectToPeer(subscribeDiscoverySession, peerHandle, false, 2);
                 }
 
                 @Override
@@ -206,7 +206,7 @@ public class WifiAwareCommCenter extends AttachCallback {
         handler.postDelayed(startWifiAware, 60_000);
     }
 
-    private void connectToPeer(DiscoverySession session, PeerHandle peerHandle, boolean isPublisher) {
+    private void connectToPeer(DiscoverySession session, PeerHandle peerHandle, boolean isPublisher, int retries) {
         logger.info("Connecting to peer (publisher=" + isPublisher + "): " + peerHandle);
         NetworkSpecifier networkSpecifier;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -253,15 +253,18 @@ public class WifiAwareCommCenter extends AttachCallback {
                     Socket socket = network.getSocketFactory().createSocket(peerIpv6, peerPort);
                     socket.setSoTimeout(CommService.KEEP_ALIVE_MILLIS * 2);
                     SocketComm sc = new SocketComm(commCenter, socket.getInputStream(), socket.getOutputStream(), "wifiaware:" + peerIpv6.getHostAddress());
+                    synchronized (WifiAwareCommCenter.this) {
+                        commsByAddr.put(peerIpv6, sc);
+                    }
                     sc.addCloseRunnable(new Runnable() {
                         @Override
                         public void run() {
                             connectivityManager.reportNetworkConnectivity(network, false);
+                            synchronized (WifiAwareCommCenter.this) {
+                                commsByAddr.remove(peerIpv6);
+                            }
                         }
                     });
-                    synchronized (WifiAwareCommCenter.this) {
-                        commsByAddr.put(peerIpv6, sc);
-                    }
                 } catch (Throwable t) {
                     logger.severe("Socket creation failed: " + t.getMessage());
                     t.printStackTrace();
@@ -278,8 +281,10 @@ public class WifiAwareCommCenter extends AttachCallback {
             @Override
             public void onUnavailable() {
                 super.onUnavailable();
-                logger.info("onUnavailable, publisher=" + isPublisher);
+                logger.info("onUnavailable, publisher=" + isPublisher + ", retries=" + retries);
                 // This is already done: connectivityManager.unregisterNetworkCallback(this);
+                if (retries > 0)
+                    connectToPeer(session, peerHandle, isPublisher, retries-1);
             }
         };
         connectivityManager.requestNetwork(networkRequest, callback);
