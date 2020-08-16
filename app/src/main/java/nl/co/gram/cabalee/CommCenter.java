@@ -99,13 +99,12 @@ public class CommCenter {
         if (key == null) {
             rh = new Cabal(this, commService);
         } else {
-            rh = new Cabal(key, this, commService);
+            ByteString id = Cabal.idFor(key);
+            rh = messageHandlers.get(id);
+            if (rh == null)
+                rh = new Cabal(key, this, commService);
         }
-        if (messageHandlers.containsKey(rh.id())) {
-            rh = messageHandlers.get(rh.id());
-        } else {
-            messageHandlers.put(rh.id(), rh);
-        }
+        messageHandlers.put(rh.id(), rh);
         return rh;
     }
 

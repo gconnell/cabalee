@@ -48,19 +48,23 @@ public class Cabal {
         this.commCenter = commCenter;
         this.key = key;
         this.box = new TweetNaclFast.SecretBox(key);
-        MessageDigest digest = null;
-        try {
-            digest = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("no sha256", e);
-        }
-        this.id = ByteString.copyFrom(digest.digest(key));
+        this.id = idFor(key);
         this.name = Util.toTitle(this.id.toByteArray());
         this.localBroadcastManager = LocalBroadcastManager.getInstance(context);
         this.notificationHandler = new CabalNotification(context, this);
         byte[] randomID = new byte[6];
         Util.randomBytes(randomID);
         myID = ByteString.copyFrom(randomID);
+    }
+
+    public static ByteString idFor(byte[] key) {
+        MessageDigest digest = null;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("no sha256", e);
+        }
+        return ByteString.copyFrom(digest.digest(key));
     }
 
     public ByteString myID() {
