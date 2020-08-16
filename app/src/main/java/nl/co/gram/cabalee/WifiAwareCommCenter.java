@@ -181,7 +181,7 @@ public class WifiAwareCommCenter extends AttachCallback {
                 @Override
                 public void onServiceDiscovered(PeerHandle peerHandle,
                                                 byte[] serviceSpecificInfo, List<byte[]> matchFilter) {
-                    logger.severe("onServiceDiscovered");
+                    logger.info("onServiceDiscovered");
                     subscribeDiscoverySession.sendMessage(peerHandle, 0, new byte[1]);
                 }
 
@@ -189,7 +189,7 @@ public class WifiAwareCommCenter extends AttachCallback {
                 public void onServiceDiscoveredWithinRange(
                         PeerHandle peerHandle,
                         byte[] serviceSpecificInfo, List<byte[]> matchFilter, int distanceMm) {
-                    logger.severe("onServiceDiscoveredWithinRange distanceMM=" + distanceMm);
+                    logger.info("onServiceDiscoveredWithinRange distanceMM=" + distanceMm);
                     subscribeDiscoverySession.sendMessage(peerHandle, 0, new byte[1]);
                 }
             }, handler);
