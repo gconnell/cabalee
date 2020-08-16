@@ -18,6 +18,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -127,11 +128,14 @@ public class WifiAwareCommCenter extends AttachCallback {
     public void onAttached(WifiAwareSession session) {
         logger.info("onAttached");
         wifiAwareSession = session;
-        PublishConfig publishConfig = new PublishConfig.Builder()
-                .setServiceName(SERVICE_NAME)
-                .build();
+        logger.info("has wifi rtt: " + context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_RTT));
 
         try {
+            PublishConfig publishConfig = new PublishConfig.Builder()
+                    .setServiceName(SERVICE_NAME)
+                    .setRangingEnabled(true)
+                    .build();
+
             wifiAwareSession.publish(publishConfig, new DiscoverySessionCallback() {
                 private PublishDiscoverySession publishDiscoverySession = null;
 
@@ -147,10 +151,17 @@ public class WifiAwareCommCenter extends AttachCallback {
                     publishDiscoverySession.sendMessage(peerHandle, 1, new byte[1]);
                     connectToPeer(publishDiscoverySession, peerHandle, true);
                 }
+
+                @Override
+                public void onSessionTerminated() {
+                    super.onSessionTerminated();
+                }
             }, handler);
 
             SubscribeConfig subscribeConfig = new SubscribeConfig.Builder()
                     .setServiceName(SERVICE_NAME)
+                    .setSubscribeType(SubscribeConfig.SUBSCRIBE_TYPE_PASSIVE)
+                    .setMinDistanceMm(5_000)
                     .build();
 
             wifiAwareSession.subscribe(subscribeConfig, new DiscoverySessionCallback() {
@@ -171,7 +182,15 @@ public class WifiAwareCommCenter extends AttachCallback {
                 @Override
                 public void onServiceDiscovered(PeerHandle peerHandle,
                                                 byte[] serviceSpecificInfo, List<byte[]> matchFilter) {
-                    logger.info("onServiceDiscovered");
+                    logger.severe("onServiceDiscovered");
+                    subscribeDiscoverySession.sendMessage(peerHandle, 0, new byte[1]);
+                }
+
+                @Override
+                public void onServiceDiscoveredWithinRange(
+                        PeerHandle peerHandle,
+                        byte[] serviceSpecificInfo, List<byte[]> matchFilter, int distanceMm) {
+                    logger.severe("onServiceDiscoveredWithinRange distanceMM=" + distanceMm);
                     subscribeDiscoverySession.sendMessage(peerHandle, 0, new byte[1]);
                 }
             }, handler);
