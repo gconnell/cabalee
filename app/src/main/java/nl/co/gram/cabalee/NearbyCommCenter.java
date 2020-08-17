@@ -132,6 +132,7 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
     private final Runnable startDiscovery = new Runnable() {
         @Override
         public void run() {
+            logger.info("Starting discovery");
             DiscoveryOptions discoveryOptions =
                     new DiscoveryOptions.Builder().setStrategy(strategy).build();
             EndpointDiscoveryCallback callback = new EndpointDiscoveryCallback() {
@@ -173,17 +174,18 @@ public class NearbyCommCenter extends ConnectionLifecycleCallback {
     private final Runnable startAdvertising = new Runnable() {
         @Override
         public void run() {
+            logger.info("Starting advertising");
             AdvertisingOptions advertisingOptions =
                     new AdvertisingOptions.Builder().setStrategy(strategy).build();
             connectionsClient
                     .startAdvertising("cabalee", SERVICE_ID, NearbyCommCenter.this, advertisingOptions)
                     .addOnSuccessListener(
                             (Void unused) -> {
-                                logger.info("Advertizing started");
+                                logger.info("Advertising started");
                             })
                     .addOnFailureListener(
                             (Exception e) -> {
-                                logger.severe("Advertizing failed: " + e.getMessage());
+                                logger.severe("Advertising failed: " + e.getMessage());
                                 e.printStackTrace();
                                 handler.postDelayed(startAdvertising, 60_000);
                             });
