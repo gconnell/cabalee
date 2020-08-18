@@ -17,7 +17,7 @@
 
         \n\nWait until you have a connection, then try again.
     </string>
-    <string name="self_destruct">DESTROYING CABAL</string>
+    <string name="self_destruct">SELF DESTRUCT</string>
     <string name="self_destruct_time"> in 60 seconds</string>
     <string name="self_destruct_warning">
         Are you sure you want to send a self-destruct message for this Cabal?

@@ -8,8 +8,8 @@ android {
         applicationId "nl.co.gram.cabalee"
         minSdkVersion 19
         targetSdkVersion 29
-        versionCode 8
-        versionName "0.8"
+        versionCode 9
+        versionName "0.9"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
