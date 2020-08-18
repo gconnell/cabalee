@@ -66,7 +66,7 @@ import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.logging.Logger;
 
-public class NetworkActivity extends AppCompatActivity {
+public class CabalActivity extends AppCompatActivity {
     private static final Logger logger = Logger.getLogger("cabalee.netact");
     private Cabal cabal = null;
     private ByteString networkId = null;
@@ -84,7 +84,10 @@ public class NetworkActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service) {
             commServiceBinder = (CommService.Binder) service;
             cabal = commServiceBinder.svc().commCenter().receiver(networkId);
-            if (cabal == null) return;
+            if (cabal == null) {
+                finish();
+                return;
+            }
             setTitle(cabal.name());
             ImageView avatar = findViewById(R.id.avatar);
             avatar.setImageBitmap(Util.identicon(cabal.myID()));
@@ -173,31 +176,11 @@ public class NetworkActivity extends AppCompatActivity {
                 } else if (Intents.CABAL_DESTROY.equals(action)) {
                     byte[] id = intent.getByteArrayExtra(Intents.EXTRA_NETWORK_ID);
                     if (networkId.equals(ByteString.copyFrom(id))) {
-                        NetworkActivity.this.finish();
+                        CabalActivity.this.finish();
                     }
                 }
             }
         };
-    }
-
-    private void clickAvatar() {
-        ImageView avatar = findViewById(R.id.avatar);
-        int w = getWindow().getDecorView().getWidth();
-        int h = getWindow().getDecorView().getHeight();
-        int min = w < h ? w : h;
-        float topLeftX = (w - min) / 2F;
-        float topLeftY = (h - min) / 2F;
-        float currX = avatar.getX();
-        float currY = avatar.getY();
-        float currW = avatar.getWidth();
-        float currH = avatar.getHeight();
-        AnimationSet as = new AnimationSet(true);
-        as.addAnimation(new TranslateAnimation(
-                TranslateAnimation.RELATIVE_TO_SELF, 0, TranslateAnimation.ABSOLUTE, 0,
-                TranslateAnimation.RELATIVE_TO_SELF, 0, TranslateAnimation.ABSOLUTE, 0));
-        as.addAnimation(new ScaleAnimation(1, min / currW, 1, min / currH));
-        as.setDuration(1_000);
-        avatar.startAnimation(as);
     }
 
     private void sendText() {
@@ -249,15 +232,15 @@ public class NetworkActivity extends AppCompatActivity {
     private void destroy() {
         final Handler h = new Handler(getApplicationContext().getMainLooper());
         final Runnable destroy = new Runnable() {
-            int attempts = 4;
+            int attempts = 1;
             @Override
             public void run() {
                 logger.info("Sending destroy");
                 cabal.sendPayload(Payload.newBuilder()
                         .setSelfDestruct(SelfDestruct.newBuilder())
                         .build());
-                if (0 < --attempts) {
-                    h.postDelayed(this, 15_000);
+                if (0 < attempts--) {
+                    h.postDelayed(this, 59_000);
                 }
             }
         };
@@ -289,7 +272,7 @@ public class NetworkActivity extends AppCompatActivity {
                 .setPositiveButton("Show Secret", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        Intent i = new Intent(NetworkActivity.this, QrShowerActivity.class);
+                        Intent i = new Intent(CabalActivity.this, QrShowerActivity.class);
                         i.setData(Uri.parse(QrShowerActivity.url(cabal.sooperSecret())));
                         i.putExtra(Intents.EXTRA_QR_TITLE, "Cabal Secret");
                         startActivity(i);
@@ -331,6 +314,10 @@ public class NetworkActivity extends AppCompatActivity {
         localBroadcastManager.registerReceiver(broadcastReceiver, intentFilter);
         refreshList();
         sendVisibility(true);
+        if (commServiceBinder != null && commServiceBinder.svc().commCenter().receiver(networkId) == null) {
+            // cabal was destroyed, finish this activity
+            finish();
+        }
     }
 
     private void sendVisibility(boolean visible) {
@@ -384,7 +371,12 @@ public class NetworkActivity extends AppCompatActivity {
                     Spannable s = new SpannableString(getResources().getString(R.string.self_destruct));
                     s.setSpan(new StyleSpan(Typeface.BOLD), 0, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     textView.setText(s);
-                    textView.append(payload.getSelfDestruct().getText());
+                    textView.append(" ");
+                    textView.append(getResources().getString(R.string.self_destruct_time));
+                    if (!payload.getSelfDestruct().getText().isEmpty()) {
+                        textView.append("\n");
+                        textView.append(payload.getSelfDestruct().getText());
+                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                         identicon.setImageDrawable(getDrawable(R.drawable.ic_baseline_whatshot_24));
                     } else {

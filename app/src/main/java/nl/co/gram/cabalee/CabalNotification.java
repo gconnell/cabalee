@@ -47,7 +47,7 @@ public class CabalNotification {
         notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         this.rh = rh;
         notificationID = notificationIdGen.addAndGet(1);
-        Intent act = new Intent(context, NetworkActivity.class);
+        Intent act = new Intent(context, CabalActivity.class);
         act.putExtra(Intents.EXTRA_NETWORK_ID, rh.id().toByteArray());
         act.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent intent = PendingIntent.getActivity(context, 0, act, PendingIntent.FLAG_UPDATE_CURRENT);
@@ -99,14 +99,17 @@ public class CabalNotification {
     private void incrementCount(int by) {
         if (visibleViaNetworkActivity) return;
         unreadCount += by;
-        NotificationCompat.Builder b = builder.setNumber(unreadCount);
+        NotificationCompat.Builder b = builder
+                .setContentTitle(rh.name())
+                .setNumber(unreadCount);
         if (destruction) {
             b = b.setColor(context.getResources().getColor(R.color.destroyColor))
                     .setColorized(true)
-                    .setPriority(NotificationManager.IMPORTANCE_HIGH)
-                    .setContentTitle("DESTROYING: " + rh.name());
+                    .setSmallIcon(R.drawable.ic_baseline_whatshot_24)
+                    .setSubText(context.getResources().getString(R.string.self_destruct))
+                    .setPriority(NotificationManager.IMPORTANCE_HIGH);
         } else {
-            b.setPriority(NotificationManager.IMPORTANCE_DEFAULT).setContentTitle(rh.name());
+            b.setPriority(NotificationManager.IMPORTANCE_DEFAULT);
         }
         notificationManager.notify(notificationID, b.build());
     }

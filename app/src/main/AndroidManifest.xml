@@ -36,8 +36,8 @@
             android:label="QR Code Shower">
         </activity>
         <activity
-            android:name="nl.co.gram.cabalee.NetworkActivity"
-            android:label="Network Activity">
+            android:name="nl.co.gram.cabalee.CabalActivity"
+            android:label="Cabal">
         </activity>
         <service android:name="nl.co.gram.cabalee.CommService" />
     </application>

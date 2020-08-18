@@ -319,7 +319,7 @@ public class MainActivity extends AppCompatActivity {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                Intent intent = new Intent(MainActivity.this, NetworkActivity.class);
+                Intent intent = new Intent(MainActivity.this, CabalActivity.class);
                 intent.putExtra(Intents.EXTRA_NETWORK_ID, rh.id().toByteArray());
                 ActivityOptions options = null;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
