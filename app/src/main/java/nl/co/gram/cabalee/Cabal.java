@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 public class Cabal {
     private static final Logger logger = Logger.getLogger("cabalee.receiver");
     private final byte[] key;
-    private final ByteString myID;
+    private final Identity myID;
     private final TweetNaclFast.SecretBox box;
     private final ByteString id;
     private final CommCenter commCenter;
@@ -53,9 +53,9 @@ public class Cabal {
         this.name = Util.toTitle(this.id.toByteArray());
         this.localBroadcastManager = LocalBroadcastManager.getInstance(context);
         this.notificationHandler = new CabalNotification(context, this);
-        byte[] randomID = new byte[6];
+        byte[] randomID = new byte[Identity.PublicKey.SIZE];
         Util.randomBytes(randomID);
-        myID = ByteString.copyFrom(randomID);
+        myID = new Identity(randomID);
     }
 
     public static ByteString idFor(byte[] key) {
@@ -68,7 +68,7 @@ public class Cabal {
         return ByteString.copyFrom(digest.digest(key));
     }
 
-    public ByteString myID() {
+    public Identity myID() {
         return myID;
     }
 

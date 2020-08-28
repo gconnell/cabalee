@@ -163,9 +163,16 @@ public class Util {
         return d;
     }
 
-    public static Bitmap identicon(ByteString id) {
+    public static final byte IDENTICON_CABAL = 0;
+    public static final byte IDENTICON_UNVERIFIED_ID = 1;
+    public static final byte IDENTICON_VERIFIED_ID = 2;
+
+    public static Bitmap identicon(byte identiconType, ByteString id) {
         Bitmap bitmap=null;
-        byte[] color = sha256().digest(id.toByteArray());
+        MessageDigest sha256 = sha256();
+        sha256.update(identiconType);
+        sha256.update(id.toByteArray());
+        byte[] color = sha256.digest();
         int frd = color[0] & 0xff;
         int fgr = color[1] & 0xff;
         int fbl = color[2] & 0xff;

@@ -74,6 +74,7 @@ public class CabalActivity extends AppCompatActivity {
     private LocalBroadcastManager localBroadcastManager = null;
     private IntentFilter intentFilter = null;
     private BroadcastReceiver broadcastReceiver = null;
+    private boolean sent = false;
 
     CommService.Binder commServiceBinder = null;
     private ServiceConnection commServiceConnection = new ServiceConnection() {
@@ -87,7 +88,7 @@ public class CabalActivity extends AppCompatActivity {
             }
             setTitle(cabal.name());
             ImageView avatar = findViewById(R.id.avatar);
-            avatar.setImageBitmap(Util.identicon(cabal.myID()));
+            avatar.setImageBitmap(Util.identicon(Util.IDENTICON_CABAL, cabal.myID().publicKey().identity()));
             refreshList();
         }
 
@@ -104,7 +105,8 @@ public class CabalActivity extends AppCompatActivity {
             List<Message> messages = cabal.messages();
             receiverListAdapter.submitList(messages);
             int lastIdx = messages.size()-1;
-            if (messages.size() > 0 && (atBottom || messages.get(lastIdx).payload.getCleartextBroadcast().getFrom().equals(cabal.myID()))) {
+            if (messages.size() > 0 && (atBottom || sent)) {
+                sent = false;
                 recyclerView.smoothScrollToPosition(lastIdx);
             }
         }
@@ -159,7 +161,7 @@ public class CabalActivity extends AppCompatActivity {
             }
         });
 
-        b3.setBackground(new BitmapDrawable(getResources(), Util.identicon(networkId)));
+        b3.setBackground(new BitmapDrawable(getResources(), Util.identicon(Util.IDENTICON_CABAL, networkId)));
 
         intentFilter = new IntentFilter();
         intentFilter.addAction(Intents.PAYLOAD_RECEIVED);
@@ -194,11 +196,11 @@ public class CabalActivity extends AppCompatActivity {
         editText.getText().clear();
         Payload p = Payload.newBuilder()
                 .setCleartextBroadcast(MessageContents.newBuilder()
-                        .setFrom(cabal.myID())
                         .setText(out)
                         .build())
                 .build();
-        cabal.sendPayload(p, null);  // TODO: fix
+        sent = true;
+        cabal.sendPayload(p, cabal.myID());  // TODO: fix
     }
 
     @Override
@@ -355,7 +357,8 @@ public class CabalActivity extends AppCompatActivity {
             textView.setText("?");
             switch (data.payload.getKindCase()) {
                 case CLEARTEXT_BROADCAST: {
-                    Bitmap bmp = Util.identicon(message.payload.getCleartextBroadcast().getFrom());
+                    byte identiconType = message.from.signingType() == Identity.SIGNED ? Util.IDENTICON_VERIFIED_ID : Util.IDENTICON_UNVERIFIED_ID;
+                    Bitmap bmp = Util.identicon(identiconType, message.from.identity());
                     identicon.setImageBitmap(bmp);
                     MessageContents contents = message.payload.getCleartextBroadcast();
                     textView.setText(contents.getText());

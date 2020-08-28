@@ -57,7 +57,7 @@ public class CabalNotification {
                 .setContentIntent(intent)
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
-                .setLargeIcon(Util.identicon(rh.id()));
+                .setLargeIcon(Util.identicon(Util.IDENTICON_CABAL, rh.id()));
         broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {

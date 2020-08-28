@@ -298,7 +298,7 @@ public class MainActivity extends AppCompatActivity {
         void bindTo(Cabal data) {
             cabal = data;
             textView.setText("Cabal: " + data.name());
-            myImage.setImageBitmap(Util.identicon(data.id()));
+            myImage.setImageBitmap(Util.identicon(Util.IDENTICON_CABAL, data.id()));
             if (data.id().equals(navigateTo)) {
                 if (navigateRunnable != null) {
                     handler.removeCallbacks(navigateRunnable);
