@@ -61,7 +61,8 @@ public class ExampleInstrumentedTest {
                     .setCleartextBroadcast(MessageContents.newBuilder()
                             .setText("wheee"))
                     .build();
-            ByteString boxed = Cabal.boxIt(p, box);
+            Identity ident = new Identity();
+            ByteString boxed = Cabal.boxIt(p, box, ident);
             Payload p2 = Cabal.unboxIt(boxed, box);
             assertTrue(p.equals(p2));
             assertNull(Cabal.unboxIt(boxed.substring(1), box));

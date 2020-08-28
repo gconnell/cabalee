@@ -22,6 +22,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.google.protobuf.ByteString;
 import com.iwebpp.crypto.TweetNaclFast;
 
+import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -38,7 +39,7 @@ public class Cabal {
     private String name;
     private final IDSet ids = new IDSet(0, 1);
     private final LocalBroadcastManager localBroadcastManager;
-    private final List<Payload> payloads = new ArrayList<>();
+    private final List<Message> messages = new ArrayList<>();
     private final CabalNotification notificationHandler;
 
     public String type() { return "receive"; }
@@ -91,17 +92,44 @@ public class Cabal {
     }
 
     private static final ByteString paddingHelper = ByteString.copyFrom(new byte[128]);
-    public static ByteString boxIt(Payload payload, TweetNaclFast.SecretBox box) {
+    public static ByteString boxIt(Payload payload, TweetNaclFast.SecretBox box, Identity identity) {
         byte[] nonce = new byte[TweetNaclFast.SecretBox.nonceLength];
         Util.randomBytes(nonce);
-        ByteString out = payload.toByteString();
-        int paddingSize = paddingSize(out.size());
-        out = ByteString.copyFrom(new byte[]{(byte) paddingSize}).concat(paddingHelper.substring(0, paddingSize)).concat(out);
-        byte[] boxed = box.box(out.toByteArray(), nonce);
-        return ByteString.copyFrom(nonce).concat(ByteString.copyFrom(boxed));
+
+        // First, we serialize
+        ByteString payloadBytes = payload.toByteString();
+
+        // Then, we pad, up to a minimum of 128 bytes and with between 1-128 bytes (uniformly random) of padding
+        int paddingSize = paddingSize(payloadBytes.size());
+        ByteString paddingBytes = ByteString.copyFrom(new byte[]{(byte) paddingSize}).concat(paddingHelper.substring(0, paddingSize));
+        ByteString toSign = paddingBytes.concat(payloadBytes);
+
+        // Then, we sign with our identity.
+        byte[] signed = identity.sign(toSign.toByteArray());
+        ByteString.Output toEncrypt = ByteString.newOutput(toSign.size() + Identity.PublicKey.OVERHEAD);
+        toEncrypt.write(identity.publicKey().signingType());
+        try {
+            identity.publicKey().identity().writeTo(toEncrypt);
+            toEncrypt.write(signed);
+        } catch (IOException e) {
+            throw new RuntimeException("writing to bytestring output", e);
+        }
+
+        // Finally, we encrypt
+        byte[] encrypted = box.box(toEncrypt.toByteString().toByteArray(), nonce);
+
+        // Lastly, we prepend the nonce.
+        ByteString.Output out = ByteString.newOutput(nonce.length + encrypted.length);
+        try {
+            out.write(nonce);
+            out.write(encrypted);
+        } catch (IOException e) {
+            throw new RuntimeException("writing bytestring", e);
+        }
+        return out.toByteString();
     }
-    public static Payload unboxIt(ByteString bytes, TweetNaclFast.SecretBox box) {
-        Payload payload;
+    public static Message unboxIt(ByteString bytes, TweetNaclFast.SecretBox box) {
+        // Unwrap outer cabal encryption
         if (bytes.size() < TweetNaclFast.SecretBox.nonceLength + TweetNaclFast.SecretBox.overheadLength) {
             logger.severe("payload too short");
             return null;
@@ -109,18 +137,33 @@ public class Cabal {
         ByteString nonce = bytes.substring(0, TweetNaclFast.SecretBox.nonceLength);
         ByteString encrypted = bytes.substring(TweetNaclFast.SecretBox.nonceLength);
         byte[] cleartext = box.open(encrypted.toByteArray(), nonce.toByteArray());
-        if (cleartext == null || cleartext.length < 128 || cleartext[0] < 0 || cleartext.length < 1 + (int) cleartext[0]) {
-            logger.severe("unable to open box");
+        if (cleartext == null) {
+            logger.severe("failed to open box");
+            return null;
+        } else if (cleartext.length < 128 + Identity.PublicKey.OVERHEAD) {
+            logger.severe("opened box too short: " + cleartext.length);
             return null;
         }
+
+        // Unwrap inner identity and verify
+        ByteString clear = ByteString.copyFrom(cleartext);
+        Identity.PublicKey key = new Identity.PublicKey(clear.byteAt(0), clear.substring(1, 1+ Identity.PublicKey.SIZE).toByteArray());
+        byte[] verified = key.open(clear.substring(1+ Identity.PublicKey.SIZE).toByteArray());
+        if (verified == null || verified[0] < 0 || verified.length < verified[0]+1) {
+            logger.severe("unable to verify box");
+            return null;
+        }
+
+        // Extract payload.
+        Payload payload;
         try {
-            ByteString serializedPayload = ByteString.copyFrom(cleartext).substring(1+(int)cleartext[0]);
+            ByteString serializedPayload = ByteString.copyFrom(verified).substring(1+(int)verified[0]);
             payload = Payload.parseFrom(serializedPayload);
         } catch (Exception e) {
-            logger.severe("discarding transport: " + e.getMessage());
+            logger.severe("deserializing: " + e.getMessage());
             return null;
         }
-        return payload.toBuilder().build();
+        return new Message(payload, key);
     }
 
     public byte[] sooperSecret() {
@@ -133,15 +176,15 @@ public class Cabal {
 
     public ByteString id() { return id; }
 
-    public void sendPayload(Payload payload) {
-        ByteString boxed = boxIt(payload, box);
+    public void sendPayload(Payload payload, Identity identity) {
+        ByteString boxed = boxIt(payload, box, identity);
         ids.checkAndAdd(Util.transportID(boxed));
         commCenter.broadcastTransport(boxed, null);
-        payloadToReceivers(payload);
+        messageToReceivers(new Message(payload, identity.publicKey()));
     }
 
-    public synchronized void payloadToReceivers(Payload p) {
-        switch (p.getKindCase()) {
+    public synchronized void messageToReceivers(Message m) {
+        switch (m.payload.getKindCase()) {
             case SELF_DESTRUCT: {
                 Intent intent = new Intent(Intents.CABAL_DESTROY_REQUESTED);
                 intent.putExtra(Intents.EXTRA_NETWORK_ID, id().toByteArray());
@@ -149,7 +192,7 @@ public class Cabal {
             }
             // FALLTHROUGH
             case CLEARTEXT_BROADCAST: {
-                payloads.add(p);
+                messages.add(m);
                 Intent intent = new Intent(Intents.PAYLOAD_RECEIVED);
                 intent.putExtra(Intents.EXTRA_NETWORK_ID, id().toByteArray());
                 localBroadcastManager.sendBroadcast(intent);
@@ -159,7 +202,7 @@ public class Cabal {
     }
 
     public boolean handleTransport(ByteString transport) {
-        Payload payload = unboxIt(transport, box);
+        Message payload = unboxIt(transport, box);
         if (payload == null) {
             logger.severe("transport discarded");
             return false;
@@ -170,11 +213,11 @@ public class Cabal {
             return true;
         }
         logger.info("received valid payload");
-        payloadToReceivers(payload);
+        messageToReceivers(payload);
         return true;
     }
 
-    public synchronized List<Payload> payloads() {
-        return new ArrayList<>(payloads);
+    public synchronized List<Message> messages() {
+        return new ArrayList<>(messages);
     }
 }

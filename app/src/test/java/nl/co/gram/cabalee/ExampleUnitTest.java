@@ -14,6 +14,9 @@
 
 package nl.co.gram.cabalee;
 
+import com.google.protobuf.ByteString;
+import com.iwebpp.crypto.TweetNaclFast;
+
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -34,6 +37,28 @@ public class ExampleUnitTest {
         assertEquals(Cabal.paddingSize(0), 127);
         for (int i = 0; i < 1000; i++) {
             assertTrue(Cabal.paddingSize(50) >= 127-50);
+        }
+    }
+
+    @Test
+    public void testBoxAndUnbox() {
+        byte[] key = new byte[TweetNaclFast.SecretBox.keyLength];
+        TweetNaclFast.SecretBox box = new TweetNaclFast.SecretBox(key);
+        for (int i = 0; i < 1000; i++) {
+            Payload p = Payload.newBuilder()
+                    .setCleartextBroadcast(MessageContents.newBuilder()
+                            .setText("wheee"))
+                    .build();
+            Identity ident = new Identity();
+            ByteString boxed = Cabal.boxIt(p, box, ident);
+            Payload p2 = Cabal.unboxIt(boxed, box);
+            assertTrue(p.equals(p2));
+            assertNull(Cabal.unboxIt(boxed.substring(1), box));
+            assertNull(Cabal.unboxIt(boxed.substring(0, boxed.size() - 1), box));
+            int minSize = 127 + 1 + TweetNaclFast.SecretBox.overheadLength + TweetNaclFast.SecretBox.nonceLength;
+            if (minSize > boxed.size()) {
+                fail("Boxed size " + boxed.size() + " < min size " + minSize);
+            }
         }
     }
 }

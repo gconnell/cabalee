@@ -40,9 +40,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.AnimationSet;
-import android.view.animation.ScaleAnimation;
-import android.view.animation.TranslateAnimation;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -104,10 +101,10 @@ public class CabalActivity extends AppCompatActivity {
         int size = receiverListAdapter.getItemCount();
         boolean atBottom = size == 0 || linearLayoutManager.findLastCompletelyVisibleItemPosition() == size - 1;
         if (cabal != null) {
-            List<Payload> payloads = cabal.payloads();
-            receiverListAdapter.submitList(payloads);
-            int lastIdx = payloads.size()-1;
-            if (payloads.size() > 0 && (atBottom || payloads.get(lastIdx).getCleartextBroadcast().getFrom().equals(cabal.myID()))) {
+            List<Message> messages = cabal.messages();
+            receiverListAdapter.submitList(messages);
+            int lastIdx = messages.size()-1;
+            if (messages.size() > 0 && (atBottom || messages.get(lastIdx).payload.getCleartextBroadcast().getFrom().equals(cabal.myID()))) {
                 recyclerView.smoothScrollToPosition(lastIdx);
             }
         }
@@ -201,7 +198,7 @@ public class CabalActivity extends AppCompatActivity {
                         .setText(out)
                         .build())
                 .build();
-        cabal.sendPayload(p);
+        cabal.sendPayload(p, null);  // TODO: fix
     }
 
     @Override
@@ -238,7 +235,7 @@ public class CabalActivity extends AppCompatActivity {
                 logger.info("Sending destroy");
                 cabal.sendPayload(Payload.newBuilder()
                         .setSelfDestruct(SelfDestruct.newBuilder())
-                        .build());
+                        .build(), null);  // TODO: fix
                 if (0 < attempts--) {
                     h.postDelayed(this, 59_000);
                 }
@@ -345,7 +342,7 @@ public class CabalActivity extends AppCompatActivity {
         public FrameLayout frameLayout;
         public TextView textView;
         public ImageView identicon;
-        Payload payload = null;
+        Message message = null;
         public MyViewHolder(FrameLayout fl) {
             super(fl);
             frameLayout = fl;
@@ -353,14 +350,14 @@ public class CabalActivity extends AppCompatActivity {
             identicon = fl.findViewById(R.id.identicon);
         }
 
-        void bindTo(Payload data) {
-            payload = data;
+        void bindTo(Message data) {
+            message = data;
             textView.setText("?");
-            switch (data.getKindCase()) {
+            switch (data.payload.getKindCase()) {
                 case CLEARTEXT_BROADCAST: {
-                    Bitmap bmp = Util.identicon(payload.getCleartextBroadcast().getFrom());
+                    Bitmap bmp = Util.identicon(message.payload.getCleartextBroadcast().getFrom());
                     identicon.setImageBitmap(bmp);
-                    MessageContents contents = data.getCleartextBroadcast();
+                    MessageContents contents = message.payload.getCleartextBroadcast();
                     textView.setText(contents.getText());
                     break;
                 }
@@ -373,9 +370,9 @@ public class CabalActivity extends AppCompatActivity {
                     textView.setText(s);
                     textView.append(" ");
                     textView.append(getResources().getString(R.string.self_destruct_time));
-                    if (!payload.getSelfDestruct().getText().isEmpty()) {
+                    if (!message.payload.getSelfDestruct().getText().isEmpty()) {
                         textView.append("\n");
-                        textView.append(payload.getSelfDestruct().getText());
+                        textView.append(message.payload.getSelfDestruct().getText());
                     }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                         identicon.setImageDrawable(getDrawable(R.drawable.ic_baseline_whatshot_24));
@@ -394,19 +391,19 @@ public class CabalActivity extends AppCompatActivity {
         }
     }
 
-    public static final DiffUtil.ItemCallback<Payload> DIFF_CALLBACK  = new DiffUtil.ItemCallback<Payload>() {
+    public static final DiffUtil.ItemCallback<Message> DIFF_CALLBACK  = new DiffUtil.ItemCallback<Message>() {
         @Override
-        public boolean areItemsTheSame(@NonNull Payload oldItem, @NonNull Payload newItem) {
+        public boolean areItemsTheSame(@NonNull Message oldItem, @NonNull Message newItem) {
             return oldItem.equals(newItem);
         }
 
         @Override
-        public boolean areContentsTheSame(@NonNull Payload oldItem, @NonNull Payload newItem) {
+        public boolean areContentsTheSame(@NonNull Message oldItem, @NonNull Message newItem) {
             return oldItem.equals(newItem);
         }
     };
 
-    class ReceiverListAdapter extends ListAdapter<Payload, MyViewHolder> {
+    class ReceiverListAdapter extends ListAdapter<Message, MyViewHolder> {
         public ReceiverListAdapter() {
             super(DIFF_CALLBACK);
         }
